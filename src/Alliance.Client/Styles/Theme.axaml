@@ -1,0 +1,127 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <FontFamily x:Key="AppSans">IBM Plex Sans, Noto Sans, Segoe UI, sans-serif</FontFamily>
+    <FontFamily x:Key="AppMono">IBM Plex Mono, JetBrains Mono, Consolas, monospace</FontFamily>
+
+    <SolidColorBrush x:Key="WindowBackgroundBrush">#0E151B</SolidColorBrush>
+    <LinearGradientBrush x:Key="ShellBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Offset="0" Color="#12212A" />
+      <GradientStop Offset="0.55" Color="#0F181F" />
+      <GradientStop Offset="1" Color="#0A0F13" />
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="StageBackgroundBrush" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Offset="0" Color="#142733" />
+      <GradientStop Offset="1" Color="#0A1014" />
+    </LinearGradientBrush>
+    <SolidColorBrush x:Key="PanelBackgroundBrush">#16222B</SolidColorBrush>
+    <SolidColorBrush x:Key="PanelBorderBrush">#2D4657</SolidColorBrush>
+    <SolidColorBrush x:Key="TextBrush">#EDF4F6</SolidColorBrush>
+    <SolidColorBrush x:Key="MutedTextBrush">#8CA3B0</SolidColorBrush>
+    <SolidColorBrush x:Key="AccentBrush">#57D7C7</SolidColorBrush>
+    <SolidColorBrush x:Key="AccentDimBrush">#123B3A</SolidColorBrush>
+    <SolidColorBrush x:Key="WarningBrush">#F1BF5B</SolidColorBrush>
+    <SolidColorBrush x:Key="WarningDimBrush">#403017</SolidColorBrush>
+    <SolidColorBrush x:Key="CriticalBrush">#FF8766</SolidColorBrush>
+    <SolidColorBrush x:Key="CriticalDimBrush">#472419</SolidColorBrush>
+    <SolidColorBrush x:Key="GridLineBrush">#2A3944</SolidColorBrush>
+  </Styles.Resources>
+
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="FontFamily" Value="{DynamicResource AppSans}" />
+  </Style>
+
+  <Style Selector="Border.panel-card">
+    <Setter Property="Background" Value="{DynamicResource PanelBackgroundBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="22" />
+    <Setter Property="Padding" Value="18" />
+  </Style>
+
+  <Style Selector="Border.stage-card">
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="Border.footer-card">
+    <Setter Property="CornerRadius" Value="18" />
+  </Style>
+
+  <Style Selector="Border.status-chip">
+    <Setter Property="Background" Value="#1D2D38" />
+    <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="999" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+
+  <Style Selector="Border.accent-chip">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <Style Selector="Border.warning-chip">
+    <Setter Property="Background" Value="{DynamicResource WarningDimBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}" />
+  </Style>
+
+  <Style Selector="Border.outline-chip">
+    <Setter Property="Background" Value="#10191F99" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.eyebrow">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.headline">
+    <Setter Property="FontSize" Value="30" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.panel-title">
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.subtle">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.metric-value">
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.chip-text">
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.mono-label">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+
+  <Style Selector="TextBlock.display-title">
+    <Setter Property="FontSize" Value="28" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="TextBlock.stage-message">
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="Medium" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+</Styles>

@@ -1,0 +1,10 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Alliance.Client.App"
+             RequestedThemeVariant="Light">
+  <Application.Styles>
+    <FluentTheme DensityStyle="Compact" />
+    <StyleInclude Source="avares://Alliance.Client/Styles/Theme.axaml" />
+    <StyleInclude Source="avares://Alliance.Client/Styles/Hud.axaml" />
+  </Application.Styles>
+</Application>

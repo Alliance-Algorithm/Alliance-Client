@@ -1,0 +1,57 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+publish/
+
+# Docs
+docs/
+
+# Test and coverage outputs
+TestResults/
+coverage/
+coverage-*/
+*.coverage
+*.coveragexml
+coverage*.xml
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.rsuser
+
+# Rider / ReSharper
+.idea/
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# VS Code
+.vscode/
+
+# Local config overrides
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.Development.local.json
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# CLI
+.agents/
+.codex/

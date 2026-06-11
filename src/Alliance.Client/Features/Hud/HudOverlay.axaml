@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Alliance.Client.Features.Hud"
+             x:Class="Alliance.Client.Features.Hud.HudOverlay"
+             x:DataType="vm:HudOverlayViewModel"
+             IsHitTestVisible="False"
+             mc:Ignorable="d">
+  <Grid Margin="24">
+    <Border Classes="crosshair-line" Width="2" Height="72" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <Border Classes="crosshair-line" Width="72" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+    <Border Classes="crosshair-ring" Width="118" Height="118" HorizontalAlignment="Center" VerticalAlignment="Center" />
+
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
+      <Border Grid.Row="0" Grid.Column="0" Classes="hud-panel">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hud-caption" Text="Mode" />
+          <TextBlock Classes="hud-value" Text="{Binding ModeLabel}" />
+          <TextBlock Classes="hud-detail" Text="{Binding LinkStatusText}" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="0" Grid.Column="2" Classes="hud-panel">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hud-caption" Text="Bearing" />
+          <TextBlock Classes="hud-value" Text="{Binding HeadingText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding AltitudeText}" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Grid.Column="0" Classes="hud-panel">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hud-caption" Text="Power" />
+          <TextBlock Classes="hud-value" Text="{Binding BatteryText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding SpeedText}" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Grid.Column="2" Classes="hud-panel">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="hud-caption" Text="Notice" />
+          <TextBlock Classes="hud-value" Text="{Binding WarningText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding LastUpdateText}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

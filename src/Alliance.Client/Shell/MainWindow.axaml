@@ -1,0 +1,119 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:video="using:Alliance.Client.Features.Video"
+        xmlns:hud="using:Alliance.Client.Features.Hud"
+        xmlns:vm="using:Alliance.Client.Shell"
+        x:Class="Alliance.Client.Shell.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1360"
+        Height="820"
+        MinWidth="1024"
+        MinHeight="640"
+        Title="{Binding WindowTitle}"
+        Background="{DynamicResource ShellBackgroundBrush}"
+        ExtendClientAreaToDecorationsHint="False"
+        mc:Ignorable="d">
+  <Border Padding="28">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="*,320" RowSpacing="20" ColumnSpacing="20">
+      <StackPanel Grid.Row="0" Grid.ColumnSpan="2" Spacing="8">
+        <TextBlock Classes="eyebrow" Text="Alliance Robotics" />
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="headline" Text="{Binding WindowTitle}" />
+            <TextBlock Classes="subtle" Text="{Binding Subtitle}" TextWrapping="Wrap" />
+          </StackPanel>
+
+          <Border Classes="status-chip accent-chip" VerticalAlignment="Top">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="chip-text" Text="Framework Mode" />
+              <TextBlock Classes="chip-text" Text="{Binding StartupMode}" />
+            </StackPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
+
+      <Border Grid.Row="1" Classes="panel-card stage-card">
+        <Grid>
+          <video:VideoView DataContext="{Binding Video}" />
+          <hud:HudOverlay DataContext="{Binding Hud}" />
+
+          <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Spacing="10">
+            <Border Classes="status-chip warning-chip">
+              <TextBlock Classes="chip-text" Text="{Binding MqttStatusLabel}" />
+            </Border>
+
+            <Border Classes="status-chip outline-chip">
+              <TextBlock Classes="chip-text" Text="{Binding VideoStatusLabel}" />
+            </Border>
+          </StackPanel>
+
+          <Border Classes="status-chip outline-chip"
+                  HorizontalAlignment="Right"
+                  VerticalAlignment="Bottom"
+                  Margin="18">
+            <TextBlock Classes="chip-text" Text="{Binding StatusFootnote}" />
+          </Border>
+        </Grid>
+      </Border>
+
+      <StackPanel Grid.Row="1" Grid.Column="1" Spacing="16">
+        <Border Classes="panel-card">
+          <StackPanel Spacing="14">
+            <TextBlock Classes="panel-title" Text="Status" />
+            <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="10">
+              <TextBlock Classes="caption" Text="MQTT" />
+              <TextBlock Grid.Column="1" Classes="metric-value" Text="{Binding MqttStatus}" />
+
+              <TextBlock Grid.Row="1" Classes="caption" Text="Video" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Classes="metric-value" Text="{Binding VideoStatus}" />
+
+              <TextBlock Grid.Row="2" Classes="caption" Text="Link" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Classes="metric-value" Text="{Binding LinkStatus}" />
+
+              <TextBlock Grid.Row="3" Classes="caption" Text="Debug" />
+              <TextBlock Grid.Row="3" Grid.Column="1" Classes="metric-value" Text="{Binding DebugModeLabel}" />
+            </Grid>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel-card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="panel-title" Text="Reserved Endpoints" />
+            <TextBlock Classes="mono-label" Text="{Binding ScenarioSummary}" TextWrapping="Wrap" />
+            <TextBlock Classes="caption"
+                       Text="No background connections start during boot. MQTT, UDP, and control flows remain disabled until real integrations are added."
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+
+        <Border Classes="panel-card">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="panel-title" Text="Extension Points" />
+            <TextBlock Classes="caption"
+                       Text="ITelemetryService, IVideoStreamService, and ICommandService are already registered with safe placeholder implementations."
+                       TextWrapping="Wrap" />
+            <TextBlock Classes="caption"
+                       Text="Features/Control stays as a typed reservation only, so no input hook or publish loop runs in this phase."
+                       TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <Border Grid.Row="2" Grid.ColumnSpan="2" Classes="panel-card footer-card">
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="16">
+          <TextBlock Classes="subtle" Text="{Binding FooterSummary}" TextWrapping="Wrap" />
+
+          <Border Grid.Column="1" Classes="status-chip">
+            <TextBlock Classes="chip-text" Text="{Binding LinkStatusLabel}" />
+          </Border>
+
+          <Border Grid.Column="2" Classes="status-chip accent-chip">
+            <TextBlock Classes="chip-text" Text="Ready For Feature Integration" />
+          </Border>
+        </Grid>
+      </Border>
+    </Grid>
+  </Border>
+</Window>
