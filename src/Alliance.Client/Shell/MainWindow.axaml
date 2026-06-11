@@ -27,8 +27,8 @@
 
           <Border Classes="status-chip accent-chip" VerticalAlignment="Top">
             <StackPanel Spacing="2">
-              <TextBlock Classes="chip-text" Text="Framework Mode" />
-              <TextBlock Classes="chip-text" Text="{Binding StartupMode}" />
+              <TextBlock Classes="chip-text" Text="Current Robot" />
+              <TextBlock Classes="chip-text" Text="{Binding CurrentRobotLabel}" />
             </StackPanel>
           </Border>
         </Grid>
@@ -61,7 +61,7 @@
       <StackPanel Grid.Row="1" Grid.Column="1" Spacing="16">
         <Border Classes="panel-card">
           <StackPanel Spacing="14">
-            <TextBlock Classes="panel-title" Text="Status" />
+            <TextBlock Classes="panel-title" Text="Runtime Status" />
             <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="14" RowSpacing="10">
               <TextBlock Classes="caption" Text="MQTT" />
               <TextBlock Grid.Column="1" Classes="metric-value" Text="{Binding MqttStatus}" />
@@ -80,22 +80,19 @@
 
         <Border Classes="panel-card">
           <StackPanel Spacing="10">
-            <TextBlock Classes="panel-title" Text="Reserved Endpoints" />
+            <TextBlock Classes="panel-title" Text="Live Endpoints" />
             <TextBlock Classes="mono-label" Text="{Binding ScenarioSummary}" TextWrapping="Wrap" />
             <TextBlock Classes="caption"
-                       Text="No background connections start during boot. MQTT, UDP, and control flows remain disabled until real integrations are added."
+                       Text="The application starts MQTT and UDP services during boot and keeps the HUD bound to the unified telemetry store."
                        TextWrapping="Wrap" />
           </StackPanel>
         </Border>
 
         <Border Classes="panel-card">
           <StackPanel Spacing="10">
-            <TextBlock Classes="panel-title" Text="Extension Points" />
+            <TextBlock Classes="panel-title" Text="Diagnostics" />
             <TextBlock Classes="caption"
-                       Text="ITelemetryService, IVideoStreamService, and ICommandService are already registered with safe placeholder implementations."
-                       TextWrapping="Wrap" />
-            <TextBlock Classes="caption"
-                       Text="Features/Control stays as a typed reservation only, so no input hook or publish loop runs in this phase."
+                       Text="Video decode runs in-process. MQTT messages update the telemetry store, and the stage overlay reflects runtime state without direct protocol bindings."
                        TextWrapping="Wrap" />
           </StackPanel>
         </Border>
@@ -110,7 +107,7 @@
           </Border>
 
           <Border Grid.Column="2" Classes="status-chip accent-chip">
-            <TextBlock Classes="chip-text" Text="Ready For Feature Integration" />
+            <TextBlock Classes="chip-text" Text="Live Integration" />
           </Border>
         </Grid>
       </Border>

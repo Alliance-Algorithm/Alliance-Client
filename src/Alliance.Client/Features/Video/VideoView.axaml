@@ -11,10 +11,12 @@
           BorderThickness="1">
     <Grid RowDefinitions="*,Auto">
       <Grid>
-        <Grid RowDefinitions="Auto,*,Auto" Margin="32">
+        <Image Source="{Binding CurrentFrame}" Stretch="UniformToFill" />
+
+        <Grid RowDefinitions="Auto,*,Auto" Margin="24">
           <StackPanel Spacing="6">
             <TextBlock Classes="eyebrow" Text="Video Plane" />
-            <TextBlock Classes="display-title" Text="{Binding StatusText}" />
+            <TextBlock Classes="display-title" Text="{Binding Title}" />
           </StackPanel>
 
           <StackPanel Grid.Row="1"

@@ -15,8 +15,12 @@ public sealed class StartupLogger
     public void LogFrameworkReady(AppSettings settings)
     {
         _logger.LogInformation(
-            "Starting {ApplicationName}. Debug mode: {DebugMode}. External integrations remain disabled in scaffold mode.",
+            "Starting {ApplicationName}. Debug mode: {DebugMode}. MQTT {MqttHost}:{MqttPort}, client {ClientId}, UDP {UdpPort}.",
             settings.ApplicationName,
-            settings.EnableDebugMode);
+            settings.EnableDebugMode,
+            settings.Mqtt.Host,
+            settings.Mqtt.Port,
+            settings.Mqtt.ClientId,
+            settings.UdpVideo.ListenPort);
     }
 }

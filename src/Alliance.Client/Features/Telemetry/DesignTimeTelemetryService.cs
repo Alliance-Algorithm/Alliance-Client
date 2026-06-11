@@ -2,15 +2,13 @@ namespace Alliance.Client.Features.Telemetry;
 
 public sealed class DesignTimeTelemetryService : ITelemetryService
 {
-    private readonly TelemetryStore _telemetryStore;
-
-    public DesignTimeTelemetryService(TelemetryStore telemetryStore)
+    public Task StartAsync(CancellationToken cancellationToken = default)
     {
-        _telemetryStore = telemetryStore;
+        return Task.CompletedTask;
     }
 
-    public TelemetrySnapshot GetSnapshot()
+    public Task StopAsync(CancellationToken cancellationToken = default)
     {
-        return _telemetryStore.CurrentSnapshot;
+        return Task.CompletedTask;
     }
 }

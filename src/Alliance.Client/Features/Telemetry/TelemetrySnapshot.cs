@@ -2,25 +2,78 @@ using Alliance.Client.Shared.Models;
 
 namespace Alliance.Client.Features.Telemetry;
 
+public sealed record TeamPanelSnapshot(
+    string SideLabel,
+    string BaseHealthText,
+    string OutpostHealthText,
+    string DamageText)
+{
+    public static TeamPanelSnapshot CreateEmpty(string sideLabel)
+    {
+        return new TeamPanelSnapshot(
+            sideLabel,
+            "Base --",
+            "Outpost --",
+            "Damage --");
+    }
+}
+
+public sealed record RobotHealthBarSnapshot(
+    string SlotLabel,
+    string HealthText);
+
+public sealed record CurrentRobotPanelSnapshot(
+    string RobotLabel,
+    string HealthText,
+    string FireRateText,
+    string AmmoText)
+{
+    public static CurrentRobotPanelSnapshot Empty(string robotLabel)
+    {
+        return new CurrentRobotPanelSnapshot(
+            robotLabel,
+            "HP --/--",
+            "ROF --",
+            "AMMO --");
+    }
+}
+
 public sealed record TelemetrySnapshot
 {
     public ConnectionState MqttState { get; init; } = ConnectionState.NotConnected;
 
     public ConnectionState VideoState { get; init; } = ConnectionState.NotConnected;
 
-    public ConnectionState LinkState { get; init; } = ConnectionState.Degraded;
+    public ConnectionState LinkState { get; init; } = ConnectionState.NotConnected;
 
-    public string ModeLabel { get; init; } = "Scaffold";
+    public string MatchTimeText { get; init; } = "00:00";
 
-    public int BatteryPercent { get; init; } = 100;
+    public TeamPanelSnapshot AllyTeam { get; init; } = TeamPanelSnapshot.CreateEmpty("ALLY");
 
-    public double HeadingDegrees { get; init; }
+    public TeamPanelSnapshot EnemyTeam { get; init; } = TeamPanelSnapshot.CreateEmpty("ENEMY");
 
-    public double AltitudeMeters { get; init; }
+    public IReadOnlyList<RobotHealthBarSnapshot> AllyRobots { get; init; } =
+        CreateDefaultRobotBars();
 
-    public double GroundSpeedMps { get; init; }
+    public IReadOnlyList<RobotHealthBarSnapshot> EnemyRobots { get; init; } =
+        CreateDefaultRobotBars();
 
-    public string LastUpdateText { get; init; } = "No telemetry feed configured";
+    public CurrentRobotPanelSnapshot CurrentRobot { get; init; } =
+        CurrentRobotPanelSnapshot.Empty("Robot --");
 
-    public string WarningText { get; init; } = "External services disabled";
+    public string LastUpdateText { get; init; } = "Awaiting MQTT packets";
+
+    public string WarningText { get; init; } = "Telemetry offline";
+
+    private static IReadOnlyList<RobotHealthBarSnapshot> CreateDefaultRobotBars()
+    {
+        return
+        [
+            new RobotHealthBarSnapshot("1", "--"),
+            new RobotHealthBarSnapshot("2", "--"),
+            new RobotHealthBarSnapshot("3", "--"),
+            new RobotHealthBarSnapshot("4", "--"),
+            new RobotHealthBarSnapshot("7", "--")
+        ];
+    }
 }

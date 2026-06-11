@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package alliance.client.protocol;
+
+option csharp_namespace = "Alliance.Client.Protocol";
+
+message GameStatus {
+  uint32 current_round = 1;
+  uint32 total_rounds = 2;
+  uint32 red_score = 3;
+  uint32 blue_score = 4;
+  uint32 current_stage = 5;
+  int32 stage_countdown_sec = 6;
+  int32 stage_elapsed_sec = 7;
+  bool is_paused = 8;
+}
+
+message GlobalUnitStatus {
+  uint32 base_health = 1;
+  uint32 base_status = 2;
+  uint32 base_shield = 3;
+  uint32 outpost_health = 4;
+  uint32 outpost_status = 5;
+  uint32 enemy_base_health = 6;
+  uint32 enemy_base_status = 7;
+  uint32 enemy_base_shield = 8;
+  uint32 enemy_outpost_health = 9;
+  uint32 enemy_outpost_status = 10;
+  repeated uint32 robot_health = 11;
+  repeated sint32 robot_bullets = 12;
+  uint32 total_damage_ally = 13;
+  uint32 total_damage_enemy = 14;
+}
+
+message RobotStaticStatus {
+  uint32 connection_state = 1;
+  uint32 field_state = 2;
+  uint32 alive_state = 3;
+  uint32 robot_id = 4;
+  uint32 robot_type = 5;
+  uint32 performance_system_shooter = 6;
+  uint32 performance_system_chassis = 7;
+  uint32 level = 8;
+  uint32 max_health = 9;
+  uint32 max_heat = 10;
+  float heat_cooldown_rate = 11;
+  uint32 max_power = 12;
+  uint32 max_buffer_energy = 13;
+  uint32 max_chassis_energy = 14;
+}
+
+message RobotDynamicStatus {
+  uint32 current_health = 1;
+  float current_heat = 2;
+  float last_projectile_fire_rate = 3;
+  uint32 current_chassis_energy = 4;
+  uint32 current_buffer_energy = 5;
+  uint32 current_experience = 6;
+  uint32 experience_for_upgrade = 7;
+  uint32 total_projectiles_fired = 8;
+  uint32 remaining_ammo = 9;
+  bool is_out_of_combat = 10;
+  uint32 out_of_combat_countdown = 11;
+  bool can_remote_heal = 12;
+  bool can_remote_ammo = 13;
+}

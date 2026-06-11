@@ -33,20 +33,21 @@ public sealed class FrameworkSmokeTests
         Assert.True(settings.EnableDebugMode);
         Assert.Equal("192.168.12.1", settings.Mqtt.Host);
         Assert.Equal(3333, settings.Mqtt.Port);
+        Assert.Equal("0x0101", settings.Mqtt.ClientId);
         Assert.Equal(3334, settings.UdpVideo.ListenPort);
         Assert.Equal("hevc", settings.UdpVideo.Codec);
     }
 
     [Fact]
-    public async Task Placeholder_Services_Expose_Disconnected_State()
+    public async Task Runtime_Services_Expose_Initial_Disconnected_State()
     {
         using var services = AppBootstrapper.BuildServiceProvider(GetAppProjectPath());
 
-        var telemetryService = services.GetRequiredService<ITelemetryService>();
+        var telemetryStore = services.GetRequiredService<TelemetryStore>();
         var videoService = services.GetRequiredService<IVideoStreamService>();
         var commandService = services.GetRequiredService<ICommandService>();
 
-        Assert.Equal("Not Connected", telemetryService.GetSnapshot().MqttState.ToDisplayText());
+        Assert.Equal("Not Connected", telemetryStore.CurrentSnapshot.MqttState.ToDisplayText());
         Assert.Equal("No Stream", videoService.StatusText);
 
         await commandService.SendAsync("noop");

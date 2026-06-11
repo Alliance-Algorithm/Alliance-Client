@@ -2,18 +2,38 @@ namespace Alliance.Client.Shared.Utils;
 
 public static class TelemetryText
 {
-    public static string FormatDegrees(double value)
+    public static string FormatCountdown(int totalSeconds)
     {
-        return $"{value:000} DEG";
+        var safeSeconds = Math.Max(totalSeconds, 0);
+        var minutes = safeSeconds / 60;
+        var seconds = safeSeconds % 60;
+        return $"{minutes:00}:{seconds:00}";
     }
 
-    public static string FormatMeters(double value)
+    public static string FormatHealth(int current, int maximum)
     {
-        return $"{value:0.0} m";
+        return maximum > 0
+            ? $"HP {current}/{maximum}"
+            : $"HP {current}/--";
     }
 
-    public static string FormatMetersPerSecond(double value)
+    public static string FormatFireRate(double value)
     {
-        return $"{value:0.0} m/s";
+        return $"ROF {value:0.0}";
+    }
+
+    public static string FormatAmmo(int value)
+    {
+        return $"AMMO {value}";
+    }
+
+    public static string FormatStructure(string label, int value)
+    {
+        return $"{label} {value}";
+    }
+
+    public static string FormatDamage(int value)
+    {
+        return $"DMG {value}";
     }
 }

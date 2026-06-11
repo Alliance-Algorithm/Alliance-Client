@@ -1,38 +1,32 @@
+using System.ComponentModel;
 using Alliance.Client.Features.Telemetry;
-using Alliance.Client.Shared.Utils;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Alliance.Client.Features.Hud;
 
 public sealed class HudOverlayViewModel : ObservableObject
 {
+    private readonly TelemetryStore _telemetryStore;
+    private TelemetrySnapshot _snapshot;
+
     public HudOverlayViewModel(TelemetryStore telemetryStore)
     {
-        var snapshot = telemetryStore.CurrentSnapshot;
-
-        ModeLabel = snapshot.ModeLabel;
-        LinkStatusText = $"LINK {snapshot.LinkState.ToDisplayText().ToUpperInvariant()}";
-        HeadingText = TelemetryText.FormatDegrees(snapshot.HeadingDegrees);
-        AltitudeText = $"ALT {TelemetryText.FormatMeters(snapshot.AltitudeMeters)}";
-        BatteryText = $"{snapshot.BatteryPercent}%";
-        SpeedText = $"SPD {TelemetryText.FormatMetersPerSecond(snapshot.GroundSpeedMps)}";
-        WarningText = snapshot.WarningText;
-        LastUpdateText = snapshot.LastUpdateText;
+        _telemetryStore = telemetryStore;
+        _snapshot = telemetryStore.CurrentSnapshot;
+        _telemetryStore.PropertyChanged += HandleTelemetryChanged;
     }
 
-    public string ModeLabel { get; }
+    public TelemetrySnapshot Snapshot
+    {
+        get => _snapshot;
+        private set => SetProperty(ref _snapshot, value);
+    }
 
-    public string LinkStatusText { get; }
-
-    public string HeadingText { get; }
-
-    public string AltitudeText { get; }
-
-    public string BatteryText { get; }
-
-    public string SpeedText { get; }
-
-    public string WarningText { get; }
-
-    public string LastUpdateText { get; }
+    private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(TelemetryStore.CurrentSnapshot))
+        {
+            Snapshot = _telemetryStore.CurrentSnapshot;
+        }
+    }
 }

@@ -3,6 +3,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Alliance.Client.Features.Hud"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
              x:Class="Alliance.Client.Features.Hud.HudOverlay"
              x:DataType="vm:HudOverlayViewModel"
              IsHitTestVisible="False"
@@ -12,37 +13,84 @@
     <Border Classes="crosshair-line" Width="72" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
     <Border Classes="crosshair-ring" Width="118" Height="118" HorizontalAlignment="Center" VerticalAlignment="Center" />
 
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="Auto,*,Auto">
+    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="320,*,320" RowSpacing="16" ColumnSpacing="16">
       <Border Grid.Row="0" Grid.Column="0" Classes="hud-panel">
         <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="Mode" />
-          <TextBlock Classes="hud-value" Text="{Binding ModeLabel}" />
-          <TextBlock Classes="hud-detail" Text="{Binding LinkStatusText}" />
+          <TextBlock Classes="hud-caption" Text="{Binding Snapshot.AllyTeam.SideLabel}" />
+          <TextBlock Classes="hud-value" Text="{Binding Snapshot.AllyTeam.BaseHealthText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.AllyTeam.OutpostHealthText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.AllyTeam.DamageText}" />
+        </StackPanel>
+      </Border>
+
+      <Border Grid.Row="0" Grid.Column="1" Classes="hud-panel">
+        <StackPanel Spacing="4" HorizontalAlignment="Center">
+          <TextBlock Classes="hud-caption" HorizontalAlignment="Center" Text="MATCH" />
+          <TextBlock Classes="hud-value" HorizontalAlignment="Center" Text="{Binding Snapshot.MatchTimeText}" />
+          <TextBlock Classes="hud-detail" HorizontalAlignment="Center" Text="{Binding Snapshot.WarningText}" />
+          <TextBlock Classes="hud-detail" HorizontalAlignment="Center" Text="{Binding Snapshot.LastUpdateText}" />
         </StackPanel>
       </Border>
 
       <Border Grid.Row="0" Grid.Column="2" Classes="hud-panel">
         <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="Bearing" />
-          <TextBlock Classes="hud-value" Text="{Binding HeadingText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding AltitudeText}" />
+          <TextBlock Classes="hud-caption" Text="{Binding Snapshot.EnemyTeam.SideLabel}" />
+          <TextBlock Classes="hud-value" Text="{Binding Snapshot.EnemyTeam.BaseHealthText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.EnemyTeam.OutpostHealthText}" />
+          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.EnemyTeam.DamageText}" />
         </StackPanel>
       </Border>
 
-      <Border Grid.Row="2" Grid.Column="0" Classes="hud-panel">
-        <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="Power" />
-          <TextBlock Classes="hud-value" Text="{Binding BatteryText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding SpeedText}" />
+      <Border Grid.Row="1" Grid.Column="0" Classes="hud-panel">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="hud-caption" Text="ALLY ROBOTS" />
+          <ItemsControl ItemsSource="{Binding Snapshot.AllyRobots}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="telemetry:RobotHealthBarSnapshot">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                  <TextBlock Classes="hud-value" Text="{Binding SlotLabel}" />
+                  <TextBlock Grid.Column="1" Classes="hud-detail" Text="{Binding HealthText}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
       </Border>
 
-      <Border Grid.Row="2" Grid.Column="2" Classes="hud-panel">
-        <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="Notice" />
-          <TextBlock Classes="hud-value" Text="{Binding WarningText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding LastUpdateText}" TextWrapping="Wrap" />
+      <Border Grid.Row="1" Grid.Column="2" Classes="hud-panel">
+        <StackPanel Spacing="10">
+          <TextBlock Classes="hud-caption" Text="ENEMY ROBOTS" />
+          <ItemsControl ItemsSource="{Binding Snapshot.EnemyRobots}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="telemetry:RobotHealthBarSnapshot">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                  <TextBlock Classes="hud-value" Text="{Binding SlotLabel}" />
+                  <TextBlock Grid.Column="1" Classes="hud-detail" Text="{Binding HealthText}" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
+      </Border>
+
+      <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Classes="hud-panel">
+        <Grid ColumnDefinitions="2*,*,*" ColumnSpacing="18">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="hud-caption" Text="CURRENT ROBOT" />
+            <TextBlock Classes="hud-value" Text="{Binding Snapshot.CurrentRobot.RobotLabel}" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="1" Spacing="4">
+            <TextBlock Classes="hud-caption" Text="STATUS" />
+            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.HealthText}" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Spacing="4">
+            <TextBlock Classes="hud-caption" Text="OUTPUT" />
+            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.FireRateText}" />
+            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.AmmoText}" />
+          </StackPanel>
+        </Grid>
       </Border>
     </Grid>
   </Grid>

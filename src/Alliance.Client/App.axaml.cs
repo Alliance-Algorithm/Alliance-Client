@@ -2,6 +2,7 @@ using Alliance.Client.Shell;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Alliance.Client.Infrastructure.Runtime;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Alliance.Client;
@@ -24,6 +25,9 @@ public partial class App : Application
                 throw new InvalidOperationException("Application services were not configured.");
             }
 
+            var runtimeCoordinator = Services.GetRequiredService<AppRuntimeCoordinator>();
+            runtimeCoordinator.Start();
+            desktop.Exit += async (_, _) => await runtimeCoordinator.StopAsync();
             desktop.MainWindow = Services.GetRequiredService<MainWindow>();
         }
 
