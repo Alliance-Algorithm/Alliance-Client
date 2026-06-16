@@ -6,7 +6,15 @@ public sealed record TeamPanelSnapshot(
     string SideLabel,
     string BaseHealthText,
     string OutpostHealthText,
-    string DamageText)
+    string DamageText,
+    string EconomyText,
+    int? BaseHealthValue = null,
+    int? BaseMaxHealth = null,
+    int? OutpostHealthValue = null,
+    int? OutpostMaxHealth = null,
+    int? TotalDamage = null,
+    int? RemainingEconomy = null,
+    long? TotalEconomy = null)
 {
     public static TeamPanelSnapshot CreateEmpty(string sideLabel)
     {
@@ -14,19 +22,67 @@ public sealed record TeamPanelSnapshot(
             sideLabel,
             "Base --",
             "Outpost --",
-            "Damage --");
+            "DMG --",
+            "ECO --");
     }
+
+    public double BaseHealthPercent =>
+        BaseHealthValue.HasValue && BaseMaxHealth is > 0
+            ? Math.Clamp((double)BaseHealthValue.Value / BaseMaxHealth.Value, 0, 1)
+            : 0;
+
+    public double OutpostHealthPercent =>
+        OutpostHealthValue.HasValue && OutpostMaxHealth is > 0
+            ? Math.Clamp((double)OutpostHealthValue.Value / OutpostMaxHealth.Value, 0, 1)
+            : 0;
+
+    public string BaseBarColorClass => BaseHealthPercent switch
+    {
+        >= 0.6 => "healthy",
+        >= 0.3 => "damaged",
+        _ => "critical"
+    };
+
+    public string OutpostBarColorClass => OutpostHealthPercent switch
+    {
+        >= 0.6 => "healthy",
+        >= 0.3 => "damaged",
+        _ => "critical"
+    };
 }
 
-public sealed record RobotHealthBarSnapshot(
+public sealed record RobotStatusSnapshot(
     string SlotLabel,
-    string HealthText);
+    string HealthText,
+    string AmmoText,
+    string BuffText,
+    int? HealthValue = null,
+    int? MaxHealthValue = null,
+    int? AmmoValue = null,
+    bool ShowHealthBar = true)
+{
+    public double HealthPercent =>
+        HealthValue.HasValue && MaxHealthValue is > 0
+            ? Math.Clamp((double)HealthValue.Value / MaxHealthValue.Value, 0, 1)
+            : 0;
+
+    public string BarColorClass => HealthPercent switch
+    {
+        >= 0.6 => "healthy",
+        >= 0.3 => "damaged",
+        _ => "critical"
+    };
+}
 
 public sealed record CurrentRobotPanelSnapshot(
     string RobotLabel,
     string HealthText,
     string FireRateText,
-    string AmmoText)
+    string AmmoText,
+    string BuffText,
+    int? CurrentHealth = null,
+    int? MaxHealth = null,
+    int? AmmoValue = null)
 {
     public static CurrentRobotPanelSnapshot Empty(string robotLabel)
     {
@@ -34,8 +90,21 @@ public sealed record CurrentRobotPanelSnapshot(
             robotLabel,
             "HP --/--",
             "ROF --",
-            "AMMO --");
+            "AMMO --",
+            "BUFF --");
     }
+
+    public double HealthPercent =>
+        CurrentHealth.HasValue && MaxHealth is > 0
+            ? Math.Clamp((double)CurrentHealth.Value / MaxHealth.Value, 0, 1)
+            : 0;
+
+    public string BarColorClass => HealthPercent switch
+    {
+        >= 0.6 => "healthy",
+        >= 0.3 => "damaged",
+        _ => "critical"
+    };
 }
 
 public sealed record TelemetrySnapshot
@@ -48,14 +117,16 @@ public sealed record TelemetrySnapshot
 
     public string MatchTimeText { get; init; } = "00:00";
 
+    public string StageText { get; init; } = "--";
+
     public TeamPanelSnapshot AllyTeam { get; init; } = TeamPanelSnapshot.CreateEmpty("ALLY");
 
     public TeamPanelSnapshot EnemyTeam { get; init; } = TeamPanelSnapshot.CreateEmpty("ENEMY");
 
-    public IReadOnlyList<RobotHealthBarSnapshot> AllyRobots { get; init; } =
+    public IReadOnlyList<RobotStatusSnapshot> AllyRobots { get; init; } =
         CreateDefaultRobotBars();
 
-    public IReadOnlyList<RobotHealthBarSnapshot> EnemyRobots { get; init; } =
+    public IReadOnlyList<RobotStatusSnapshot> EnemyRobots { get; init; } =
         CreateDefaultRobotBars();
 
     public CurrentRobotPanelSnapshot CurrentRobot { get; init; } =
@@ -65,15 +136,16 @@ public sealed record TelemetrySnapshot
 
     public string WarningText { get; init; } = "Telemetry offline";
 
-    private static IReadOnlyList<RobotHealthBarSnapshot> CreateDefaultRobotBars()
+    private static IReadOnlyList<RobotStatusSnapshot> CreateDefaultRobotBars()
     {
         return
         [
-            new RobotHealthBarSnapshot("1", "--"),
-            new RobotHealthBarSnapshot("2", "--"),
-            new RobotHealthBarSnapshot("3", "--"),
-            new RobotHealthBarSnapshot("4", "--"),
-            new RobotHealthBarSnapshot("7", "--")
+            new RobotStatusSnapshot("1", "--", "--", "--"),
+            new RobotStatusSnapshot("2", "--", "--", "--"),
+            new RobotStatusSnapshot("3", "--", "--", "--"),
+            new RobotStatusSnapshot("4", "--", "--", "--"),
+            new RobotStatusSnapshot("7", "--", "--", "--"),
+            new RobotStatusSnapshot("6", "--", "--", "--", ShowHealthBar: false)
         ];
     }
 }

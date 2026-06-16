@@ -4,94 +4,222 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Alliance.Client.Features.Hud"
              xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
              x:Class="Alliance.Client.Features.Hud.HudOverlay"
              x:DataType="vm:HudOverlayViewModel"
              IsHitTestVisible="False"
              mc:Ignorable="d">
-  <Grid Margin="24">
-    <Border Classes="crosshair-line" Width="2" Height="72" HorizontalAlignment="Center" VerticalAlignment="Center" />
-    <Border Classes="crosshair-line" Width="72" Height="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
-    <Border Classes="crosshair-ring" Width="118" Height="118" HorizontalAlignment="Center" VerticalAlignment="Center" />
+  <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="220,*,220"
+        RowSpacing="12" ColumnSpacing="12" Margin="24">
 
-    <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="320,*,320" RowSpacing="16" ColumnSpacing="16">
-      <Border Grid.Row="0" Grid.Column="0" Classes="hud-panel">
+    <!-- ===== 顶部区域：比赛信息面板 + 倒计时 ===== -->
+    <Grid Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="3"
+          ColumnDefinitions="*,Auto,*" ColumnSpacing="12">
+      <!-- 己方比赛信息 -->
+      <Border Grid.Column="0" Classes="hud-panel" HorizontalAlignment="Right">
+        <StackPanel Spacing="4" HorizontalAlignment="Right">
+          <TextBlock Classes="hud-caption"
+                     Text="{Binding Snapshot.AllyTeam.SideLabel}" HorizontalAlignment="Right" />
+          <Grid RowDefinitions="Auto,Auto" RowSpacing="3" HorizontalAlignment="Right">
+            <StackPanel Grid.Row="0" Spacing="1">
+              <TextBlock Classes="hud-detail" HorizontalAlignment="Right"
+                         Text="{Binding Snapshot.AllyTeam.BaseHealthText}" />
+              <Border Classes="hud-bar-bg-sm">
+                <Border Classes="hud-bar-fill-sm"
+                        HorizontalAlignment="Left"
+                        Width="{Binding Snapshot.AllyTeam.BaseHealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+              </Border>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Spacing="1">
+              <TextBlock Classes="hud-detail" HorizontalAlignment="Right"
+                         Text="{Binding Snapshot.AllyTeam.OutpostHealthText}" />
+              <Border Classes="hud-bar-bg-sm">
+                <Border Classes="hud-bar-fill-sm"
+                        HorizontalAlignment="Left"
+                        Width="{Binding Snapshot.AllyTeam.OutpostHealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+              </Border>
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="hud-detail" HorizontalAlignment="Right"
+                     Text="{Binding Snapshot.AllyTeam.EconomyText}" />
+          <TextBlock Classes="hud-detail" HorizontalAlignment="Right"
+                     Text="{Binding Snapshot.AllyTeam.DamageText}" />
+        </StackPanel>
+      </Border>
+
+      <!-- 中间：倒计时 -->
+      <Border Grid.Column="1" Classes="hud-timer">
+        <StackPanel Spacing="2" HorizontalAlignment="Center">
+          <TextBlock Classes="hud-countdown"
+                     HorizontalAlignment="Center"
+                     Text="{Binding Snapshot.MatchTimeText}" />
+          <TextBlock Classes="hud-warning"
+                     HorizontalAlignment="Center"
+                     Text="{Binding Snapshot.WarningText}" />
+        </StackPanel>
+      </Border>
+
+      <!-- 敌方比赛信息 -->
+      <Border Grid.Column="2" Classes="hud-panel" HorizontalAlignment="Left">
         <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="{Binding Snapshot.AllyTeam.SideLabel}" />
-          <TextBlock Classes="hud-value" Text="{Binding Snapshot.AllyTeam.BaseHealthText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.AllyTeam.OutpostHealthText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.AllyTeam.DamageText}" />
+          <TextBlock Classes="hud-caption"
+                     Text="{Binding Snapshot.EnemyTeam.SideLabel}" />
+          <Grid RowDefinitions="Auto,Auto" RowSpacing="3">
+            <StackPanel Grid.Row="0" Spacing="1">
+              <TextBlock Classes="hud-detail"
+                         Text="{Binding Snapshot.EnemyTeam.BaseHealthText}" />
+              <Border Classes="hud-bar-bg-sm">
+                <Border Classes="hud-bar-fill-sm"
+                        HorizontalAlignment="Left"
+                        Width="{Binding Snapshot.EnemyTeam.BaseHealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+              </Border>
+            </StackPanel>
+            <StackPanel Grid.Row="1" Spacing="1">
+              <TextBlock Classes="hud-detail"
+                         Text="{Binding Snapshot.EnemyTeam.OutpostHealthText}" />
+              <Border Classes="hud-bar-bg-sm">
+                <Border Classes="hud-bar-fill-sm"
+                        HorizontalAlignment="Left"
+                        Width="{Binding Snapshot.EnemyTeam.OutpostHealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+              </Border>
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="hud-detail"
+                     Text="{Binding Snapshot.EnemyTeam.EconomyText}" />
+          <TextBlock Classes="hud-detail"
+                     Text="{Binding Snapshot.EnemyTeam.DamageText}" />
         </StackPanel>
-      </Border>
-
-      <Border Grid.Row="0" Grid.Column="1" Classes="hud-panel">
-        <StackPanel Spacing="4" HorizontalAlignment="Center">
-          <TextBlock Classes="hud-caption" HorizontalAlignment="Center" Text="MATCH" />
-          <TextBlock Classes="hud-value" HorizontalAlignment="Center" Text="{Binding Snapshot.MatchTimeText}" />
-          <TextBlock Classes="hud-detail" HorizontalAlignment="Center" Text="{Binding Snapshot.WarningText}" />
-          <TextBlock Classes="hud-detail" HorizontalAlignment="Center" Text="{Binding Snapshot.LastUpdateText}" />
-        </StackPanel>
-      </Border>
-
-      <Border Grid.Row="0" Grid.Column="2" Classes="hud-panel">
-        <StackPanel Spacing="4">
-          <TextBlock Classes="hud-caption" Text="{Binding Snapshot.EnemyTeam.SideLabel}" />
-          <TextBlock Classes="hud-value" Text="{Binding Snapshot.EnemyTeam.BaseHealthText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.EnemyTeam.OutpostHealthText}" />
-          <TextBlock Classes="hud-detail" Text="{Binding Snapshot.EnemyTeam.DamageText}" />
-        </StackPanel>
-      </Border>
-
-      <Border Grid.Row="1" Grid.Column="0" Classes="hud-panel">
-        <StackPanel Spacing="10">
-          <TextBlock Classes="hud-caption" Text="ALLY ROBOTS" />
-          <ItemsControl ItemsSource="{Binding Snapshot.AllyRobots}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="telemetry:RobotHealthBarSnapshot">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                  <TextBlock Classes="hud-value" Text="{Binding SlotLabel}" />
-                  <TextBlock Grid.Column="1" Classes="hud-detail" Text="{Binding HealthText}" />
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
-
-      <Border Grid.Row="1" Grid.Column="2" Classes="hud-panel">
-        <StackPanel Spacing="10">
-          <TextBlock Classes="hud-caption" Text="ENEMY ROBOTS" />
-          <ItemsControl ItemsSource="{Binding Snapshot.EnemyRobots}">
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="telemetry:RobotHealthBarSnapshot">
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                  <TextBlock Classes="hud-value" Text="{Binding SlotLabel}" />
-                  <TextBlock Grid.Column="1" Classes="hud-detail" Text="{Binding HealthText}" />
-                </Grid>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-        </StackPanel>
-      </Border>
-
-      <Border Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Classes="hud-panel">
-        <Grid ColumnDefinitions="2*,*,*" ColumnSpacing="18">
-          <StackPanel Spacing="4">
-            <TextBlock Classes="hud-caption" Text="CURRENT ROBOT" />
-            <TextBlock Classes="hud-value" Text="{Binding Snapshot.CurrentRobot.RobotLabel}" />
-          </StackPanel>
-
-          <StackPanel Grid.Column="1" Spacing="4">
-            <TextBlock Classes="hud-caption" Text="STATUS" />
-            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.HealthText}" />
-          </StackPanel>
-
-          <StackPanel Grid.Column="2" Spacing="4">
-            <TextBlock Classes="hud-caption" Text="OUTPUT" />
-            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.FireRateText}" />
-            <TextBlock Classes="hud-detail" Text="{Binding Snapshot.CurrentRobot.AmmoText}" />
-          </StackPanel>
-        </Grid>
       </Border>
     </Grid>
+
+    <!-- ===== 中间区域：机器人状态栏 + 准星 ===== -->
+
+    <!-- 左中：己方机器人状态栏 -->
+    <Border Grid.Row="1" Grid.Column="0" Classes="hud-panel" VerticalAlignment="Center">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="hud-caption" Text="ALLIES" />
+        <ItemsControl ItemsSource="{Binding Snapshot.AllyRobots}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="telemetry:RobotStatusSnapshot">
+              <StackPanel Spacing="2">
+                <!-- 第一行：机器人编号 + 血量条 -->
+                <Grid ColumnDefinitions="22,*" ColumnSpacing="6"
+                      IsVisible="{Binding ShowHealthBar}">
+                  <TextBlock Classes="hud-slot"
+                             Text="{Binding SlotLabel}"
+                             VerticalAlignment="Center" />
+                  <Border Classes="hud-bar-bg"
+                          Grid.Column="1"
+                          VerticalAlignment="Center">
+                    <Border Classes="hud-bar-fill"
+                            HorizontalAlignment="Left"
+                            Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                  </Border>
+                </Grid>
+                <!-- 第二行：弹药 + buff -->
+                <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="6">
+                  <TextBlock Classes="hud-slot"
+                             Text="{Binding SlotLabel}"
+                             IsVisible="{Binding !ShowHealthBar}" />
+                  <TextBlock Classes="hud-detail"
+                             Text="{Binding AmmoText}" />
+                  <TextBlock Grid.Column="2" Classes="hud-detail"
+                             Text="{Binding BuffText}" />
+                </Grid>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- 中间：准星 -->
+    <Grid Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Border Classes="crosshair-line" Width="1.5" Height="48" />
+      <Border Classes="crosshair-line" Width="48" Height="1.5" />
+      <Border Classes="crosshair-ring" Width="96" Height="96" />
+      <Border Classes="crosshair-dot" Width="4" Height="4" />
+    </Grid>
+
+    <!-- 右中：敌方机器人状态栏 -->
+    <Border Grid.Row="1" Grid.Column="2" Classes="hud-panel" VerticalAlignment="Center">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="hud-caption" Text="ENEMIES" />
+        <ItemsControl ItemsSource="{Binding Snapshot.EnemyRobots}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="telemetry:RobotStatusSnapshot">
+              <StackPanel Spacing="2">
+                <!-- 第一行：机器人编号 + 血量条 -->
+                <Grid ColumnDefinitions="22,*" ColumnSpacing="6"
+                      IsVisible="{Binding ShowHealthBar}">
+                  <TextBlock Classes="hud-slot"
+                             Text="{Binding SlotLabel}"
+                             VerticalAlignment="Center" />
+                  <Border Classes="hud-bar-bg"
+                          Grid.Column="1"
+                          VerticalAlignment="Center">
+                    <Border Classes="hud-bar-fill"
+                            HorizontalAlignment="Left"
+                            Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                  </Border>
+                </Grid>
+                <!-- 第二行：弹药 + buff -->
+                <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="6">
+                  <TextBlock Classes="hud-slot"
+                             Text="{Binding SlotLabel}"
+                             IsVisible="{Binding !ShowHealthBar}" />
+                  <TextBlock Classes="hud-detail"
+                             Text="{Binding AmmoText}" />
+                  <TextBlock Grid.Column="2" Classes="hud-detail"
+                             Text="{Binding BuffText}" />
+                </Grid>
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </Border>
+
+    <!-- ===== 底部区域 ===== -->
+
+    <!-- 底部：当前机器人状态（左下方，两行制） -->
+    <Border Grid.Row="2" Grid.Column="0" Classes="hud-panel-accent">
+      <StackPanel Spacing="6">
+        <TextBlock Classes="hud-caption" Text="CURRENT" />
+        <TextBlock Classes="hud-value"
+                   Text="{Binding Snapshot.CurrentRobot.RobotLabel}" />
+        <!-- 第一行：血量 -->
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <Border Classes="hud-bar-bg-lg" VerticalAlignment="Center">
+            <Border Classes="hud-bar-fill-lg"
+                    HorizontalAlignment="Left"
+                    Width="{Binding Snapshot.CurrentRobot.HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+          </Border>
+          <TextBlock Grid.Column="1" Classes="hud-value"
+                     VerticalAlignment="Center"
+                     FontSize="14"
+                     Text="{Binding Snapshot.CurrentRobot.HealthText}" />
+        </Grid>
+        <!-- 第二行：弹药 + 射速 + buff -->
+        <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+          <StackPanel Spacing="1">
+            <TextBlock Classes="hud-detail" Text="AMMO" />
+            <TextBlock Classes="hud-value" FontSize="12"
+                       Text="{Binding Snapshot.CurrentRobot.AmmoText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Spacing="1">
+            <TextBlock Classes="hud-detail" Text="ROF" />
+            <TextBlock Classes="hud-value" FontSize="12"
+                       Text="{Binding Snapshot.CurrentRobot.FireRateText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="2" Spacing="1">
+            <TextBlock Classes="hud-detail" Text="BUFF" />
+            <TextBlock Classes="hud-value" FontSize="12"
+                       Text="{Binding Snapshot.CurrentRobot.BuffText}" />
+          </StackPanel>
+        </Grid>
+      </StackPanel>
+    </Border>
+
   </Grid>
 </UserControl>

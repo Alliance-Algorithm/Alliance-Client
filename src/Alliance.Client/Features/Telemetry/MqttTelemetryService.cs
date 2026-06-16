@@ -18,6 +18,7 @@ public sealed class MqttTelemetryService : ITelemetryService
     [
         nameof(GameStatus),
         nameof(GlobalUnitStatus),
+        nameof(GlobalLogisticsStatus),
         nameof(RobotStaticStatus),
         nameof(RobotDynamicStatus)
     ];
@@ -210,6 +211,9 @@ public sealed class MqttTelemetryService : ITelemetryService
                 case nameof(GlobalUnitStatus):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyGlobalUnitStatus(GlobalUnitStatus.Parser.ParseFrom(payload)));
+                case nameof(GlobalLogisticsStatus):
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyGlobalLogisticsStatus(GlobalLogisticsStatus.Parser.ParseFrom(payload)));
                 case nameof(RobotStaticStatus):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRobotStaticStatus(RobotStaticStatus.Parser.ParseFrom(payload)));

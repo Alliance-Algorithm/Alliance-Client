@@ -8,7 +8,7 @@ namespace Alliance.Client.Features.Telemetry;
 
 public sealed class TelemetryStore : ObservableObject
 {
-    private static readonly string[] RobotSlots = ["1", "2", "3", "4", "7"];
+    private static readonly string[] RobotSlots = ["1", "2", "3", "4", "7", "6"];
 
     private readonly object _gate = new();
     private readonly int? _configuredRobotId;
@@ -16,6 +16,7 @@ public sealed class TelemetryStore : ObservableObject
     private TelemetrySnapshot _currentSnapshot;
     private GameStatus? _gameStatus;
     private GlobalUnitStatus? _globalUnitStatus;
+    private GlobalLogisticsStatus? _globalLogisticsStatus;
     private RobotStaticStatus? _robotStaticStatus;
     private RobotDynamicStatus? _robotDynamicStatus;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
@@ -79,6 +80,15 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             _globalUnitStatus = status.Clone();
+            MarkTelemetryReceivedLocked();
+        }
+    }
+
+    public void ApplyGlobalLogisticsStatus(GlobalLogisticsStatus status)
+    {
+        lock (_gate)
+        {
+            _globalLogisticsStatus = status.Clone();
             MarkTelemetryReceivedLocked();
         }
     }
@@ -148,6 +158,7 @@ public sealed class TelemetryStore : ObservableObject
             VideoState = _videoState,
             LinkState = BuildLinkState(now),
             MatchTimeText = TelemetryText.FormatCountdown(_gameStatus?.StageCountdownSec ?? 0),
+            StageText = BuildStageText(),
             AllyTeam = BuildTeamPanel(
                 "ALLY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.BaseHealth,
@@ -168,20 +179,74 @@ public sealed class TelemetryStore : ObservableObject
 
     private TeamPanelSnapshot BuildTeamPanel(string sideLabel, int? baseHealth, int? outpostHealth, int? damage)
     {
+        var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
+        var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
+
         return new TeamPanelSnapshot(
             sideLabel,
             baseHealth.HasValue ? TelemetryText.FormatStructure("Base", baseHealth.Value) : "Base --",
             outpostHealth.HasValue ? TelemetryText.FormatStructure("Outpost", outpostHealth.Value) : "Outpost --",
-            damage.HasValue ? TelemetryText.FormatDamage(damage.Value) : "DMG --");
+            damage.HasValue ? TelemetryText.FormatDamage(damage.Value) : "DMG --",
+            FormatEconomy(remainingEconomy, totalEconomy),
+            baseHealth,
+            5000,
+            outpostHealth,
+            1500,
+            damage,
+            remainingEconomy,
+            totalEconomy);
     }
 
-    private IReadOnlyList<RobotHealthBarSnapshot> BuildRobotBars(int enemyOffset)
+    private static string FormatEconomy(int? remaining, long? total)
     {
-        var values = new List<RobotHealthBarSnapshot>(RobotSlots.Length);
+        if (remaining is null && total is null)
+        {
+            return "ECO --";
+        }
+
+        var remainingText = remaining.HasValue ? remaining.Value.ToString() : "--";
+        var totalText = total.HasValue ? total.Value.ToString("N0") : "--";
+        return $"ECO {remainingText}/{totalText}";
+    }
+
+    private string BuildStageText()
+    {
+        if (_gameStatus is null)
+        {
+            return "--";
+        }
+
+        return _gameStatus.CurrentStage switch
+        {
+            0 => "NOT STARTED",
+            1 => "PREPARING",
+            2 => "SELF-TEST",
+            3 => "COUNTDOWN",
+            4 => "IN MATCH",
+            5 => "SETTLING",
+            _ => $"STAGE {_gameStatus.CurrentStage}"
+        };
+    }
+
+    private IReadOnlyList<RobotStatusSnapshot> BuildRobotBars(int enemyOffset)
+    {
+        var values = new List<RobotStatusSnapshot>(RobotSlots.Length);
         for (var index = 0; index < RobotSlots.Length; index++)
         {
+            var slot = RobotSlots[index];
             var health = TryReadRobotHealth(enemyOffset + index);
-            values.Add(new RobotHealthBarSnapshot(RobotSlots[index], health?.ToString() ?? "--"));
+            var bullets = TryReadRobotBullets(enemyOffset + index);
+            var showHealthBar = slot != "6";
+
+            values.Add(new RobotStatusSnapshot(
+                slot,
+                health?.ToString() ?? "--",
+                bullets?.ToString() ?? "--",
+                "--",
+                health,
+                500,
+                bullets,
+                showHealthBar));
         }
 
         return values;
@@ -195,6 +260,16 @@ public sealed class TelemetryStore : ObservableObject
         }
 
         return (int)_globalUnitStatus.RobotHealth[index];
+    }
+
+    private int? TryReadRobotBullets(int index)
+    {
+        if (_globalUnitStatus is null || index >= _globalUnitStatus.RobotBullets.Count)
+        {
+            return null;
+        }
+
+        return (int)_globalUnitStatus.RobotBullets[index];
     }
 
     private CurrentRobotPanelSnapshot BuildCurrentRobotPanel()
@@ -213,7 +288,11 @@ public sealed class TelemetryStore : ObservableObject
                 ? TelemetryText.FormatHealth(currentHealth ?? 0, maxHealth ?? 0)
                 : "HP --/--",
             fireRate.HasValue ? TelemetryText.FormatFireRate(fireRate.Value) : "ROF --",
-            ammo.HasValue ? TelemetryText.FormatAmmo(ammo.Value) : "AMMO --");
+            ammo.HasValue ? TelemetryText.FormatAmmo(ammo.Value) : "AMMO --",
+            "BUFF --",
+            currentHealth,
+            maxHealth,
+            ammo);
     }
 
     private static string BuildRobotLabel(int? robotId)

@@ -64,3 +64,10 @@ message RobotDynamicStatus {
   bool can_remote_heal = 12;
   bool can_remote_ammo = 13;
 }
+
+message GlobalLogisticsStatus {
+  uint32 remaining_economy = 1;
+  uint64 total_economy_obtained = 2;
+  uint32 tech_level = 3;
+  uint32 encryption_level = 4;
+}
