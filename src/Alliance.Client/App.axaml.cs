@@ -26,7 +26,14 @@ public partial class App : Application
             }
 
             var runtimeCoordinator = Services.GetRequiredService<AppRuntimeCoordinator>();
-            runtimeCoordinator.Start();
+            try
+            {
+                runtimeCoordinator.Start();
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[FATAL] Failed to start runtime coordinator: {ex}");
+            }
             desktop.Exit += async (_, _) => await runtimeCoordinator.StopAsync();
             desktop.MainWindow = Services.GetRequiredService<MainWindow>();
         }

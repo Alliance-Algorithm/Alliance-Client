@@ -33,7 +33,7 @@ public sealed class FrameworkSmokeTests
         Assert.True(settings.EnableDebugMode);
         Assert.Equal("192.168.12.1", settings.Mqtt.Host);
         Assert.Equal(3333, settings.Mqtt.Port);
-        Assert.Equal("0x0101", settings.Mqtt.ClientId);
+        Assert.Equal("101", settings.Mqtt.ClientId);
         Assert.Equal(3334, settings.UdpVideo.ListenPort);
         Assert.Equal("hevc", settings.UdpVideo.Codec);
     }

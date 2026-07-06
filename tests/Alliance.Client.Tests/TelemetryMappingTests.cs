@@ -9,10 +9,10 @@ namespace Alliance.Client.Tests;
 public sealed class TelemetryMappingTests
 {
     [Theory]
-    [InlineData("0x0101", 1)]
-    [InlineData("0x0104", 4)]
-    [InlineData("0x0165", 101)]
-    [InlineData("0x016A", 106)]
+    [InlineData("1", 1)]
+    [InlineData("4", 4)]
+    [InlineData("101", 101)]
+    [InlineData("106", 106)]
     public void PlayerIdentity_Maps_ClientId_To_RobotId(string clientId, int expectedRobotId)
     {
         Assert.True(PlayerIdentity.TryResolveRobotId(clientId, out var robotId));
@@ -92,7 +92,7 @@ public sealed class TelemetryMappingTests
         {
             Mqtt = new AppSettings.MqttSettings
             {
-                ClientId = "0x0101"
+                ClientId = "1"
             }
         };
     }

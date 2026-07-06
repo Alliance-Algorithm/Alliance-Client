@@ -33,14 +33,45 @@
         </Border>
       </StackPanel>
 
-      <!-- 右上角：当前机器人 -->
-      <Border Classes="status-chip accent-chip"
-              HorizontalAlignment="Right" VerticalAlignment="Top" Margin="18">
-        <StackPanel Spacing="2">
-          <TextBlock Classes="chip-text" Text="ROBOT" />
+      <!-- 透明遮罩层（点击外部关闭下拉） -->
+      <Border IsVisible="{Binding IsRobotDropdownOpen}"
+              Background="Transparent"
+              ZIndex="199"
+              PointerPressed="OnOverlayPressed" />
+
+      <!-- 右上角：机器人选择 -->
+      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="18" Spacing="4"
+                  ZIndex="200">
+        <Border Classes="status-chip accent-chip"
+                PointerPressed="OnRobotSelectorPressed"
+                Cursor="Hand">
           <TextBlock Classes="chip-text" Text="{Binding CurrentRobotLabel}" />
-        </StackPanel>
-      </Border>
+        </Border>
+        <Border IsVisible="{Binding IsRobotDropdownOpen}"
+                Background="#15202B"
+                BorderBrush="{DynamicResource AccentBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="4"
+                MinWidth="120"
+                MaxHeight="240">
+          <ListBox ItemsSource="{Binding RobotIdOptions}"
+                   SelectedItem="{Binding SelectedRobotId}"
+                   Background="Transparent"
+                   BorderThickness="0"
+                   Foreground="{DynamicResource TextBrush}"
+                   FontSize="12"
+                   FontWeight="SemiBold">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Padding="10,6"
+                           Text="{Binding StringFormat='Robot {0}'}"
+                           Foreground="{DynamicResource TextBrush}" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+      </StackPanel>
 
       <!-- 右下角：状态信息 -->
       <Border Classes="status-chip outline-chip"

@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -21,5 +22,22 @@ public partial class MainWindow : Window
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnRobotSelectorPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.ToggleRobotDropdown();
+            e.Handled = true;
+        }
+    }
+
+    private void OnOverlayPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.IsRobotDropdownOpen = false;
+        }
     }
 }

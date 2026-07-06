@@ -124,4 +124,14 @@
     <Setter Property="FontWeight" Value="Medium" />
     <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
   </Style>
+
+  <Style Selector="ComboBox">
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+
+  <Style Selector="ComboBox /template/ Popup">
+    <Setter Property="PlacementMode" Value="Bottom" />
+  </Style>
 </Styles>

@@ -16,7 +16,7 @@ public sealed class AppSettings
 
         public int Port { get; set; } = 3333;
 
-        public string ClientId { get; set; } = "0x0101";
+        public string ClientId { get; set; } = "101";
     }
 
     public sealed class UdpVideoSettings

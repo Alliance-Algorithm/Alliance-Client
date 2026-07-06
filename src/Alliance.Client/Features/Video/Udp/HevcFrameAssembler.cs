@@ -18,7 +18,7 @@ internal sealed class HevcFrameAssembler
         completedFrame = null;
         note = null;
 
-        PurgeExpiredFrames(DateTimeOffset.UtcNow, out note);
+        PurgeExpiredFrames(DateTimeOffset.UtcNow);
 
         if (datagram.Length <= HeaderSize)
         {
@@ -26,9 +26,9 @@ internal sealed class HevcFrameAssembler
             return false;
         }
 
-        var frameId = BinaryPrimitives.ReadUInt16LittleEndian(datagram);
-        var segmentIndex = BinaryPrimitives.ReadUInt16LittleEndian(datagram[2..]);
-        var totalFrameBytes = BinaryPrimitives.ReadUInt32LittleEndian(datagram[4..]);
+        var frameId = BinaryPrimitives.ReadUInt16BigEndian(datagram);
+        var segmentIndex = BinaryPrimitives.ReadUInt16BigEndian(datagram[2..]);
+        var totalFrameBytes = BinaryPrimitives.ReadUInt32BigEndian(datagram[4..]);
         var payload = datagram[HeaderSize..].ToArray();
 
         if (totalFrameBytes == 0 || totalFrameBytes > MaxFrameSizeBytes)
@@ -100,9 +100,8 @@ internal sealed class HevcFrameAssembler
         return true;
     }
 
-    private void PurgeExpiredFrames(DateTimeOffset now, out string? note)
+    private void PurgeExpiredFrames(DateTimeOffset now)
     {
-        note = null;
         var expired = _frames
             .Where(pair => now - pair.Value.LastUpdatedUtc > FrameTimeout)
             .Select(pair => pair.Key)
@@ -111,7 +110,6 @@ internal sealed class HevcFrameAssembler
         foreach (var frameId in expired)
         {
             _frames.Remove(frameId);
-            note = $"Dropped stale frame {frameId}";
         }
     }
 

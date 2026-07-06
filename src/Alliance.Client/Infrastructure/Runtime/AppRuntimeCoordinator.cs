@@ -31,6 +31,12 @@ public sealed class AppRuntimeCoordinator
         await _telemetryService.StopAsync(cancellationToken);
     }
 
+    public async Task RestartTelemetryAsync(CancellationToken cancellationToken = default)
+    {
+        await _telemetryService.StopAsync(cancellationToken);
+        await _telemetryService.StartAsync(cancellationToken);
+    }
+
     private async Task StartInternalAsync()
     {
         try

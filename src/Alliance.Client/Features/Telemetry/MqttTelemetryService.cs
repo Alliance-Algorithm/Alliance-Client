@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Reflection;
 using Avalonia.Threading;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
@@ -8,6 +7,8 @@ using Alliance.Client.Shared.Utils;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 using MQTTnet;
+using MQTTnet.Exceptions;
+using MQTTnet.Formatter;
 using MQTTnet.Protocol;
 
 namespace Alliance.Client.Features.Telemetry;
@@ -31,6 +32,9 @@ public sealed class MqttTelemetryService : ITelemetryService
     private Task? _runTask;
     private Task? _monitorTask;
     private IMqttClient? _client;
+    private TimeSpan _retryDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(2);
 
     public MqttTelemetryService(
         AppSettings settings,
@@ -97,6 +101,12 @@ public sealed class MqttTelemetryService : ITelemetryService
 
             try
             {
+                _logger.LogInformation(
+                    "Attempting MQTT connection to {Host}:{Port}, ClientId={ClientId}, Protocol=MQTTv5",
+                    _settings.Mqtt.Host,
+                    _settings.Mqtt.Port,
+                    _settings.Mqtt.ClientId);
+
                 await RunOnUiThreadAsync(() =>
                     _telemetryStore.SetMqttState(
                         ConnectionState.Connecting,
@@ -118,21 +128,70 @@ public sealed class MqttTelemetryService : ITelemetryService
                 var options = new MqttClientOptionsBuilder()
                     .WithClientId(_settings.Mqtt.ClientId)
                     .WithTcpServer(_settings.Mqtt.Host, _settings.Mqtt.Port)
+                    .WithProtocolVersion(MQTTnet.Formatter.MqttProtocolVersion.V500)
+                    .WithCleanStart(true)
+                    .WithSessionExpiryInterval(0)
+                    .WithKeepAlivePeriod(TimeSpan.FromSeconds(60))
                     .Build();
 
-                await client.ConnectAsync(options, cancellationToken);
+                var connectResult = await client.ConnectAsync(options, cancellationToken);
+                _logger.LogInformation(
+                    "MQTT connect result: {ResultCode}, Reason={ReasonString}",
+                    connectResult.ResultCode,
+                    connectResult.ReasonString);
+
+                if (connectResult.ResultCode != MqttClientConnectResultCode.Success)
+                {
+                    _logger.LogWarning(
+                        "MQTT connection rejected by broker: {ResultCode}, Reason={ReasonString}",
+                        connectResult.ResultCode,
+                        connectResult.ReasonString);
+                    await RunOnUiThreadAsync(() =>
+                        _telemetryStore.SetMqttState(ConnectionState.NotConnected,
+                            $"Rejected: {connectResult.ResultCode}"));
+                    await Task.Delay(_retryDelay, cancellationToken);
+                    _retryDelay = _retryDelay + _retryDelay > MaxRetryDelay
+                        ? MaxRetryDelay
+                        : _retryDelay + _retryDelay;
+                    continue;
+                }
+
+                _retryDelay = InitialRetryDelay;
+
                 await disconnectedSignal.Task.WaitAsync(cancellationToken);
+                _retryDelay = _retryDelay + _retryDelay > MaxRetryDelay
+                    ? MaxRetryDelay
+                    : _retryDelay + _retryDelay;
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 break;
             }
+            catch (MQTTnet.Exceptions.MqttCommunicationException comEx)
+            {
+                _logger.LogWarning(comEx,
+                    "MQTT communication failed (retry in {Delay}s): {Message}",
+                    _retryDelay.TotalSeconds,
+                    comEx.Message);
+                await RunOnUiThreadAsync(() =>
+                    _telemetryStore.SetMqttState(ConnectionState.NotConnected, $"MQTT error: {comEx.Message}"));
+                await Task.Delay(_retryDelay, cancellationToken);
+                _retryDelay = _retryDelay + _retryDelay > MaxRetryDelay
+                    ? MaxRetryDelay
+                    : _retryDelay + _retryDelay;
+            }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "MQTT telemetry loop failed.");
+                _logger.LogWarning(ex,
+                    "MQTT telemetry loop failed (retry in {Delay}s): {Message}",
+                    _retryDelay.TotalSeconds,
+                    ex.Message);
                 await RunOnUiThreadAsync(() =>
                     _telemetryStore.SetMqttState(ConnectionState.NotConnected, $"MQTT error: {ex.Message}"));
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
+                await Task.Delay(_retryDelay, cancellationToken);
+                _retryDelay = _retryDelay + _retryDelay > MaxRetryDelay
+                    ? MaxRetryDelay
+                    : _retryDelay + _retryDelay;
             }
             finally
             {
@@ -171,38 +230,70 @@ public sealed class MqttTelemetryService : ITelemetryService
 
     private async Task HandleConnectedAsync(MqttClientConnectedEventArgs args)
     {
-        _logger.LogInformation("Connected to MQTT {Host}:{Port}", _settings.Mqtt.Host, _settings.Mqtt.Port);
+        _logger.LogInformation(
+            "MQTT connected to {Host}:{Port}. ConnectResult={ResultCode}",
+            _settings.Mqtt.Host,
+            _settings.Mqtt.Port,
+            args.ConnectResult.ResultCode);
 
         if (_client is null)
         {
             return;
         }
 
+        var subscribedCount = 0;
         foreach (var topic in Topics)
         {
-            await _client.SubscribeAsync(topic, MqttQualityOfServiceLevel.AtLeastOnce);
+            try
+            {
+                await _client.SubscribeAsync(topic, MqttQualityOfServiceLevel.AtLeastOnce);
+                _logger.LogInformation("MQTT subscribed to topic '{Topic}'", topic);
+                subscribedCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "MQTT failed to subscribe to topic '{Topic}'", topic);
+            }
         }
 
+        var note = subscribedCount == Topics.Length
+            ? $"Subscribed {Topics.Length}/{Topics.Length} topics"
+            : $"Subscribed {subscribedCount}/{Topics.Length} topics (some failed)";
+
         await RunOnUiThreadAsync(() =>
-            _telemetryStore.SetMqttState(ConnectionState.Ready, $"Subscribed {Topics.Length} topics"));
+            _telemetryStore.SetMqttState(ConnectionState.Ready, note));
     }
 
     private Task HandleDisconnectedAsync(MqttClientDisconnectedEventArgs args)
     {
+        _logger.LogWarning(
+            "MQTT disconnected. Reason={Reason}, Message={ReasonString}",
+            args.Reason,
+            args.ReasonString);
+
+        if (args.Exception is not null)
+        {
+            _logger.LogWarning(args.Exception, "MQTT disconnect caused by exception");
+        }
+
         if (_runtimeCts?.IsCancellationRequested == true)
         {
             return Task.CompletedTask;
         }
 
         return RunOnUiThreadAsync(() =>
-            _telemetryStore.SetMqttState(ConnectionState.NotConnected, "MQTT disconnected"));
+            _telemetryStore.SetMqttState(ConnectionState.NotConnected, $"MQTT disconnected: {args.ReasonString}"));
     }
 
     private Task HandleApplicationMessageReceivedAsync(MqttApplicationMessageReceivedEventArgs args)
     {
         try
         {
-            var payload = ExtractPayloadBytes(args.ApplicationMessage);
+            var payload = args.ApplicationMessage.Payload.ToArray();
+            _logger.LogDebug(
+                "MQTT message received on topic '{Topic}' ({Bytes} bytes)",
+                args.ApplicationMessage.Topic,
+                payload.Length);
             switch (args.ApplicationMessage.Topic)
             {
                 case nameof(GameStatus):
@@ -221,46 +312,15 @@ public sealed class MqttTelemetryService : ITelemetryService
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRobotDynamicStatus(RobotDynamicStatus.Parser.ParseFrom(payload)));
                 default:
-                    _logger.LogDebug("Ignoring unsupported MQTT topic {Topic}", args.ApplicationMessage.Topic);
+                    _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
                     return Task.CompletedTask;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to process MQTT topic {Topic}", args.ApplicationMessage.Topic);
+            _logger.LogWarning(ex, "Failed to process MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
             return Task.CompletedTask;
         }
-    }
-
-    private static byte[] ExtractPayloadBytes(object applicationMessage)
-    {
-        foreach (var propertyName in new[] { "PayloadSegment", "Payload" })
-        {
-            var property = applicationMessage.GetType().GetProperty(
-                propertyName,
-                BindingFlags.Instance | BindingFlags.Public);
-            if (property is null)
-            {
-                continue;
-            }
-
-            var value = property.GetValue(applicationMessage);
-            switch (value)
-            {
-                case null:
-                    continue;
-                case byte[] bytes:
-                    return bytes;
-                case ArraySegment<byte> segment:
-                    return segment.ToArray();
-                case ReadOnlyMemory<byte> memory:
-                    return memory.ToArray();
-                case ReadOnlySequence<byte> sequence:
-                    return sequence.ToArray();
-            }
-        }
-
-        return [];
     }
 
     private static Task RunOnUiThreadAsync(Action action)

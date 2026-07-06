@@ -2,46 +2,33 @@ namespace Alliance.Client.Shared.Utils;
 
 public static class PlayerIdentity
 {
-    private static readonly IReadOnlyDictionary<ushort, int> ClientToRobotMap = new Dictionary<ushort, int>
+    private static readonly IReadOnlyDictionary<int, string> RobotToClientIdMap = new Dictionary<int, string>
     {
-        [0x0101] = 1,
-        [0x0102] = 2,
-        [0x0103] = 3,
-        [0x0104] = 4,
-        [0x0105] = 5,
-        [0x0106] = 6,
-        [0x0165] = 101,
-        [0x0166] = 102,
-        [0x0167] = 103,
-        [0x0168] = 104,
-        [0x0169] = 105,
-        [0x016A] = 106
+        [1] = "1",
+        [2] = "2",
+        [3] = "3",
+        [4] = "4",
+        [6] = "6",
+        [101] = "101",
+        [102] = "102",
+        [103] = "103",
+        [104] = "104",
+        [106] = "106"
     };
+
+    public static IReadOnlyList<int> AvailableRobotIds { get; } = [1, 2, 3, 4, 6, 101, 102, 103, 104, 106];
 
     public static bool TryResolveRobotId(string? clientIdText, out int robotId)
     {
         robotId = 0;
+        if (string.IsNullOrWhiteSpace(clientIdText)) return false;
+        if (int.TryParse(clientIdText.Trim(), out robotId) && RobotToClientIdMap.ContainsKey(robotId))
+            return true;
+        return false;
+    }
 
-        if (string.IsNullOrWhiteSpace(clientIdText))
-        {
-            return false;
-        }
-
-        var normalized = clientIdText.Trim();
-        if (normalized.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-        {
-            normalized = normalized[2..];
-        }
-
-        if (!ushort.TryParse(
-                normalized,
-                System.Globalization.NumberStyles.HexNumber,
-                System.Globalization.CultureInfo.InvariantCulture,
-                out var clientId))
-        {
-            return false;
-        }
-
-        return ClientToRobotMap.TryGetValue(clientId, out robotId);
+    public static bool TryResolveClientId(int robotId, out string clientId)
+    {
+        return RobotToClientIdMap.TryGetValue(robotId, out clientId!);
     }
 }
