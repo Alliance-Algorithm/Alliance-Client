@@ -15,12 +15,11 @@ public sealed class StartupLogger
     public void LogFrameworkReady(AppSettings settings)
     {
         _logger.LogInformation(
-            "Starting {ApplicationName}. Debug mode: {DebugMode}. MQTT {MqttHost}:{MqttPort}, client {ClientId}, UDP {UdpPort}.",
+            "Starting {ApplicationName}. Debug mode: {DebugMode}. MQTT {MqttHost}:{MqttPort}, client {ClientId}.",
             settings.ApplicationName,
             settings.EnableDebugMode,
             settings.Mqtt.Host,
             settings.Mqtt.Port,
-            settings.Mqtt.ClientId,
-            settings.UdpVideo.ListenPort);
+            settings.Mqtt.ClientId);
     }
 }

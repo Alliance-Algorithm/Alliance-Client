@@ -2,53 +2,48 @@ using System.ComponentModel;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
-using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
 using Alliance.Client.Shared.Utils;
+using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Alliance.Client.Shell;
 
 public sealed class MainWindowViewModel : ObservableObject
 {
     private readonly TelemetryStore _telemetryStore;
-    private readonly IVideoStreamService _videoStreamService;
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private string _currentRobotLabel;
     private string _mqttStatus;
-    private string _videoStatus;
     private string _linkStatus;
     private string _statusFootnote;
     private string _footerSummary;
     private int _selectedRobotId;
     private bool _isRobotDropdownOpen;
+    private Window? _messageViewerWindow;
 
     public MainWindowViewModel(
-        VideoViewModel video,
         HudOverlayViewModel hud,
         TelemetryStore telemetryStore,
-        IVideoStreamService videoStreamService,
         AppSettings settings,
         AppRuntimeCoordinator runtimeCoordinator)
     {
-        Video = video;
         Hud = hud;
         _telemetryStore = telemetryStore;
-        _videoStreamService = videoStreamService;
         _settings = settings;
         _runtimeCoordinator = runtimeCoordinator;
 
         WindowTitle = settings.ApplicationName;
-        Subtitle = "Real MQTT telemetry and UDP HEVC video feed for live robot operation.";
+        Subtitle = "Real MQTT telemetry for live robot operation.";
         DebugModeLabel = settings.EnableDebugMode ? "Enabled" : "Disabled";
         ScenarioSummary =
-            $"MQTT {settings.Mqtt.Host}:{settings.Mqtt.Port} | Client {settings.Mqtt.ClientId} | UDP {settings.UdpVideo.ListenPort} / {settings.UdpVideo.Codec.ToUpperInvariant()}";
+            $"MQTT {settings.Mqtt.Host}:{settings.Mqtt.Port} | Client {settings.Mqtt.ClientId}";
 
         var snapshot = telemetryStore.CurrentSnapshot;
         _currentRobotLabel = snapshot.CurrentRobot.RobotLabel;
         _mqttStatus = snapshot.MqttState.ToDisplayText();
-        _videoStatus = videoStreamService.State.ToDisplayText();
         _linkStatus = snapshot.LinkState.ToDisplayText();
         _statusFootnote = snapshot.LastUpdateText;
         _footerSummary = snapshot.WarningText;
@@ -58,7 +53,6 @@ public sealed class MainWindowViewModel : ObservableObject
             : 1;
 
         _telemetryStore.PropertyChanged += HandleTelemetryChanged;
-        _videoStreamService.PropertyChanged += HandleVideoChanged;
     }
 
     public string WindowTitle { get; }
@@ -79,18 +73,6 @@ public sealed class MainWindowViewModel : ObservableObject
             if (SetProperty(ref _mqttStatus, value))
             {
                 OnPropertyChanged(nameof(MqttStatusLabel));
-            }
-        }
-    }
-
-    public string VideoStatus
-    {
-        get => _videoStatus;
-        private set
-        {
-            if (SetProperty(ref _videoStatus, value))
-            {
-                OnPropertyChanged(nameof(VideoStatusLabel));
             }
         }
     }
@@ -125,11 +107,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string MqttStatusLabel => $"MQTT: {MqttStatus}";
 
-    public string VideoStatusLabel => $"Video: {VideoStatus}";
-
     public string LinkStatusLabel => $"Link: {LinkStatus}";
-
-    public VideoViewModel Video { get; }
 
     public HudOverlayViewModel Hud { get; }
 
@@ -183,8 +161,19 @@ public sealed class MainWindowViewModel : ObservableObject
         FooterSummary = snapshot.WarningText;
     }
 
-    private void HandleVideoChanged(object? sender, PropertyChangedEventArgs args)
+    public void OpenMessageViewer()
     {
-        VideoStatus = _videoStreamService.State.ToDisplayText();
+        if (_messageViewerWindow is { IsVisible: true })
+        {
+            _messageViewerWindow.BringIntoView();
+            return;
+        }
+
+        if (App.Services is null) return;
+        var vm = App.Services.GetRequiredService<MessageViewerWindowViewModel>();
+        var window = new MessageViewerWindow(vm);
+        window.Closed += (_, _) => _messageViewerWindow = null;
+        _messageViewerWindow = window;
+        window.Show();
     }
 }

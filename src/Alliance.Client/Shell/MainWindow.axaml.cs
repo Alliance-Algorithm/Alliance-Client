@@ -40,4 +40,13 @@ public partial class MainWindow : Window
             vm.IsRobotDropdownOpen = false;
         }
     }
+
+    private void OnMessageViewerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.OpenMessageViewer();
+            e.Handled = true;
+        }
+    }
 }

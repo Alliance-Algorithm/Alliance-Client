@@ -13,6 +13,8 @@ message GameStatus {
   int32 stage_countdown_sec = 6;
   int32 stage_elapsed_sec = 7;
   bool is_paused = 8;
+  uint32 game_result = 9;
+  uint32 end_reason = 10;
 }
 
 message GlobalUnitStatus {
@@ -27,7 +29,7 @@ message GlobalUnitStatus {
   uint32 enemy_outpost_health = 9;
   uint32 enemy_outpost_status = 10;
   repeated uint32 robot_health = 11;
-  repeated sint32 robot_bullets = 12;
+  repeated int32 robot_bullets = 12;
   uint32 total_damage_ally = 13;
   uint32 total_damage_enemy = 14;
 }
@@ -70,4 +72,32 @@ message GlobalLogisticsStatus {
   uint64 total_economy_obtained = 2;
   uint32 tech_level = 3;
   uint32 encryption_level = 4;
+}
+
+message GlobalSpecialMechanism {
+  repeated uint32 mechanism_id = 1;
+  repeated int32 mechanism_time_sec = 2;
+}
+
+message Event {
+  int32 event_id = 1;
+  string param = 2;
+}
+
+message Buff {
+  uint32 robot_id = 1;
+  uint32 buff_type = 2;
+  int32 buff_level = 3;
+  uint32 buff_max_time = 4;
+  uint32 buff_left_time = 5;
+}
+
+message RadarSingleRobotInfo {
+  uint32 target_pos_x = 1;
+  uint32 target_pos_y = 2;
+  uint32 is_high_light = 3;
+}
+
+message RadarInfoToClient {
+  repeated RadarSingleRobotInfo radar_single_robot_info = 1;
 }

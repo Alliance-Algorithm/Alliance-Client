@@ -1,3 +1,4 @@
+using System.Globalization;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
 using Alliance.Client.Shared.Models;
@@ -9,9 +10,15 @@ namespace Alliance.Client.Features.Telemetry;
 public sealed class TelemetryStore : ObservableObject
 {
     private static readonly string[] RobotSlots = ["1", "2", "3", "4", "7", "6"];
+    private static readonly int[] VisibleRobotSlotIds = [1, 2, 3, 4, 7, 6];
+    private static readonly int[] TeamHealthOrder = [1, 2, 3, 4, 7];
+    private static readonly int[] RadarRelativeOrder = [1, 2, 3, 4, 6, 7];
+    private static readonly int[] RedRobotIds = [1, 2, 3, 4, 6, 7];
+    private static readonly int[] BlueRobotIds = [101, 102, 103, 104, 106, 107];
 
     private readonly object _gate = new();
     private readonly int? _configuredRobotId;
+    private readonly bool _isConfiguredBlue;
 
     private TelemetrySnapshot _currentSnapshot;
     private GameStatus? _gameStatus;
@@ -19,12 +26,14 @@ public sealed class TelemetryStore : ObservableObject
     private GlobalLogisticsStatus? _globalLogisticsStatus;
     private RobotStaticStatus? _robotStaticStatus;
     private RobotDynamicStatus? _robotDynamicStatus;
+    private EventState? _latestEvent;
+    private List<MechanismState> _activeMechanisms = [];
+    private Dictionary<BuffKey, BuffState> _activeBuffs = [];
+    private List<RadarSlotState> _radarSlots = [];
     private ConnectionState _mqttState = ConnectionState.NotConnected;
-    private ConnectionState _videoState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
     private string? _startupWarning;
     private string? _mqttNote;
-    private string? _videoNote;
 
     public TelemetryStore(AppSettings settings)
     {
@@ -35,6 +44,7 @@ public sealed class TelemetryStore : ObservableObject
         else
         {
             _configuredRobotId = robotId;
+            _isConfiguredBlue = robotId >= 100;
         }
 
         _currentSnapshot = BuildSnapshot();
@@ -46,22 +56,109 @@ public sealed class TelemetryStore : ObservableObject
         private set => SetProperty(ref _currentSnapshot, value);
     }
 
+    public GameStatus? GameStatus
+    {
+        get { lock (_gate) { return _gameStatus; } }
+    }
+
+    public GlobalUnitStatus? GlobalUnitStatus
+    {
+        get { lock (_gate) { return _globalUnitStatus; } }
+    }
+
+    public GlobalLogisticsStatus? GlobalLogisticsStatus
+    {
+        get { lock (_gate) { return _globalLogisticsStatus; } }
+    }
+
+    public RobotStaticStatus? RobotStaticStatus
+    {
+        get { lock (_gate) { return _robotStaticStatus; } }
+    }
+
+    public RobotDynamicStatus? RobotDynamicStatus
+    {
+        get { lock (_gate) { return _robotDynamicStatus; } }
+    }
+
+    public Event? Event
+    {
+        get
+        {
+            lock (_gate)
+            {
+                return _latestEvent is null
+                    ? null
+                    : new Event { EventId = _latestEvent.EventId, Param = _latestEvent.RawParam };
+            }
+        }
+    }
+
+    public GlobalSpecialMechanism? GlobalSpecialMechanism
+    {
+        get
+        {
+            lock (_gate)
+            {
+                var msg = new GlobalSpecialMechanism();
+                foreach (var m in _activeMechanisms)
+                {
+                    msg.MechanismId.Add((uint)m.MechanismId);
+                    msg.MechanismTimeSec.Add(m.InitialSeconds);
+                }
+                return msg;
+            }
+        }
+    }
+
+    public Buff? Buff
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (_activeBuffs.Count == 0) return null;
+                var first = _activeBuffs.Values.First();
+                return new Buff
+                {
+                    RobotId = (uint)first.RobotId,
+                    BuffType = (uint)first.BuffType,
+                    BuffLevel = first.BuffLevel,
+                    BuffMaxTime = (uint)first.MaxSeconds,
+                    BuffLeftTime = (uint)first.InitialSeconds
+                };
+            }
+        }
+    }
+
+    public RadarInfoToClient? RadarInfoToClient
+    {
+        get
+        {
+            lock (_gate)
+            {
+                if (_radarSlots.Count == 0) return null;
+                var msg = new RadarInfoToClient();
+                foreach (var slot in _radarSlots)
+                {
+                    msg.RadarSingleRobotInfo.Add(new RadarSingleRobotInfo
+                    {
+                        TargetPosX = (uint)slot.PositionXcm,
+                        TargetPosY = (uint)slot.PositionYcm,
+                        IsHighLight = (uint)slot.HighlightState
+                    });
+                }
+                return msg;
+            }
+        }
+    }
+
     public void SetMqttState(ConnectionState state, string? note = null)
     {
         lock (_gate)
         {
             _mqttState = state;
             _mqttNote = note;
-            PublishSnapshotLocked();
-        }
-    }
-
-    public void SetVideoState(ConnectionState state, string? note = null)
-    {
-        lock (_gate)
-        {
-            _videoState = state;
-            _videoNote = note;
             PublishSnapshotLocked();
         }
     }
@@ -93,6 +190,37 @@ public sealed class TelemetryStore : ObservableObject
         }
     }
 
+    public void ApplyGlobalSpecialMechanism(GlobalSpecialMechanism status)
+    {
+        lock (_gate)
+        {
+            var receivedAt = DateTimeOffset.UtcNow;
+            var count = Math.Min(status.MechanismId.Count, status.MechanismTimeSec.Count);
+            _activeMechanisms = new List<MechanismState>(count);
+            for (var index = 0; index < count; index++)
+            {
+                _activeMechanisms.Add(new MechanismState(
+                    (int)status.MechanismId[index],
+                    status.MechanismTimeSec[index],
+                    receivedAt));
+            }
+
+            MarkTelemetryReceivedLocked(receivedAt);
+        }
+    }
+
+    public void ApplyEvent(Event status)
+    {
+        lock (_gate)
+        {
+            _latestEvent = new EventState(
+                status.EventId,
+                status.Param,
+                BuildEventSummary(status.EventId, status.Param));
+            MarkTelemetryReceivedLocked();
+        }
+    }
+
     public void ApplyRobotStaticStatus(RobotStaticStatus status)
     {
         lock (_gate)
@@ -111,6 +239,52 @@ public sealed class TelemetryStore : ObservableObject
         }
     }
 
+    public void ApplyBuff(Buff status)
+    {
+        lock (_gate)
+        {
+            var receivedAt = DateTimeOffset.UtcNow;
+            var key = new BuffKey((int)status.RobotId, (int)status.BuffType);
+            if (status.BuffLeftTime == 0)
+            {
+                _activeBuffs.Remove(key);
+            }
+            else
+            {
+                _activeBuffs[key] = new BuffState(
+                    (int)status.RobotId,
+                    (int)status.BuffType,
+                    status.BuffLevel,
+                    (int)status.BuffMaxTime,
+                    (int)status.BuffLeftTime,
+                    receivedAt);
+            }
+
+            MarkTelemetryReceivedLocked(receivedAt);
+        }
+    }
+
+    public void ApplyRadarInfoToClient(RadarInfoToClient status)
+    {
+        lock (_gate)
+        {
+            var receivedAt = DateTimeOffset.UtcNow;
+            _radarSlots = new List<RadarSlotState>(status.RadarSingleRobotInfo.Count);
+            for (var index = 0; index < status.RadarSingleRobotInfo.Count && index < 12; index++)
+            {
+                var info = status.RadarSingleRobotInfo[index];
+                _radarSlots.Add(new RadarSlotState(
+                    index,
+                    (int)info.TargetPosX,
+                    (int)info.TargetPosY,
+                    (int)info.IsHighLight,
+                    receivedAt));
+            }
+
+            MarkTelemetryReceivedLocked(receivedAt);
+        }
+    }
+
     public void RefreshStaleness(DateTimeOffset now)
     {
         lock (_gate)
@@ -120,19 +294,32 @@ public sealed class TelemetryStore : ObservableObject
                 return;
             }
 
-            if (BuildLinkState(now) != CurrentSnapshot.LinkState ||
-                BuildWarningText(now) != CurrentSnapshot.WarningText ||
-                BuildLastUpdateText(now) != CurrentSnapshot.LastUpdateText)
+            RemoveExpiredStateLocked(now);
+
+            var nextBuffs = BuildActiveBuffSnapshots(now);
+            var nextMechanisms = BuildMechanismSnapshots(now);
+            var shouldPublish = BuildLinkState(now) != CurrentSnapshot.LinkState ||
+                                BuildWarningText(now) != CurrentSnapshot.WarningText ||
+                                BuildLastUpdateText(now) != CurrentSnapshot.LastUpdateText ||
+                                !CurrentSnapshot.ActiveBuffs.SequenceEqual(nextBuffs) ||
+                                !CurrentSnapshot.ActiveMechanisms.SequenceEqual(nextMechanisms);
+
+            if (shouldPublish)
             {
-                PublishSnapshotLocked(now);
+                PublishSnapshotLocked(now, nextBuffs, nextMechanisms);
             }
         }
     }
 
     private void MarkTelemetryReceivedLocked()
     {
-        _lastTelemetryAt = DateTimeOffset.UtcNow;
-        PublishSnapshotLocked(_lastTelemetryAt.Value);
+        MarkTelemetryReceivedLocked(DateTimeOffset.UtcNow);
+    }
+
+    private void MarkTelemetryReceivedLocked(DateTimeOffset receivedAt)
+    {
+        _lastTelemetryAt = receivedAt;
+        PublishSnapshotLocked(receivedAt);
     }
 
     private void PublishSnapshotLocked()
@@ -142,20 +329,31 @@ public sealed class TelemetryStore : ObservableObject
 
     private void PublishSnapshotLocked(DateTimeOffset now)
     {
-        CurrentSnapshot = BuildSnapshot(now);
+        PublishSnapshotLocked(now, BuildActiveBuffSnapshots(now), BuildMechanismSnapshots(now));
+    }
+
+    private void PublishSnapshotLocked(
+        DateTimeOffset now,
+        IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs,
+        IReadOnlyList<SpecialMechanismTelemetrySnapshot> activeMechanisms)
+    {
+        CurrentSnapshot = BuildSnapshot(now, activeBuffs, activeMechanisms);
     }
 
     private TelemetrySnapshot BuildSnapshot()
     {
-        return BuildSnapshot(DateTimeOffset.UtcNow);
+        return BuildSnapshot(DateTimeOffset.UtcNow, BuildActiveBuffSnapshots(DateTimeOffset.UtcNow),
+            BuildMechanismSnapshots(DateTimeOffset.UtcNow));
     }
 
-    private TelemetrySnapshot BuildSnapshot(DateTimeOffset now)
+    private TelemetrySnapshot BuildSnapshot(
+        DateTimeOffset now,
+        IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs,
+        IReadOnlyList<SpecialMechanismTelemetrySnapshot> activeMechanisms)
     {
         return new TelemetrySnapshot
         {
             MqttState = _mqttState,
-            VideoState = _videoState,
             LinkState = BuildLinkState(now),
             MatchTimeText = TelemetryText.FormatCountdown(_gameStatus?.StageCountdownSec ?? 0),
             StageText = BuildStageText(),
@@ -169,9 +367,15 @@ public sealed class TelemetryStore : ObservableObject
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyBaseHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyOutpostHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy),
-            AllyRobots = BuildRobotBars(enemyOffset: 0),
-            EnemyRobots = BuildRobotBars(enemyOffset: 5),
-            CurrentRobot = BuildCurrentRobotPanel(),
+            AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs),
+            EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs),
+            CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
+            LatestEvent = _latestEvent is null
+                ? null
+                : new EventTelemetrySnapshot(_latestEvent.EventId, _latestEvent.RawParam, _latestEvent.SummaryText),
+            ActiveMechanisms = activeMechanisms,
+            RadarRobots = BuildRadarSnapshots(),
+            ActiveBuffs = activeBuffs,
             LastUpdateText = BuildLastUpdateText(now),
             WarningText = BuildWarningText(now)
         };
@@ -205,7 +409,7 @@ public sealed class TelemetryStore : ObservableObject
         }
 
         var remainingText = remaining.HasValue ? remaining.Value.ToString() : "--";
-        var totalText = total.HasValue ? total.Value.ToString("N0") : "--";
+        var totalText = total.HasValue ? total.Value.ToString("N0", CultureInfo.InvariantCulture) : "--";
         return $"ECO {remainingText}/{totalText}";
     }
 
@@ -228,21 +432,23 @@ public sealed class TelemetryStore : ObservableObject
         };
     }
 
-    private IReadOnlyList<RobotStatusSnapshot> BuildRobotBars(int enemyOffset)
+    private IReadOnlyList<RobotStatusSnapshot> BuildRobotBars(bool isAllyTeam, IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs)
     {
         var values = new List<RobotStatusSnapshot>(RobotSlots.Length);
         for (var index = 0; index < RobotSlots.Length; index++)
         {
-            var slot = RobotSlots[index];
-            var health = TryReadRobotHealth(enemyOffset + index);
-            var bullets = TryReadRobotBullets(enemyOffset + index);
-            var showHealthBar = slot != "6";
+            var slotLabel = RobotSlots[index];
+            var relativeRobotId = VisibleRobotSlotIds[index];
+            var health = TryReadRobotHealth(isAllyTeam, relativeRobotId);
+            var bullets = TryReadRobotBullets(isAllyTeam, relativeRobotId);
+            var absoluteRobotId = ResolveTeamRobotId(relativeRobotId, isAllyTeam);
+            var showHealthBar = relativeRobotId != 6;
 
             values.Add(new RobotStatusSnapshot(
-                slot,
-                health?.ToString() ?? "--",
-                bullets?.ToString() ?? "--",
-                "--",
+                slotLabel,
+                health?.ToString(CultureInfo.InvariantCulture) ?? "--",
+                bullets?.ToString(CultureInfo.InvariantCulture) ?? "--",
+                BuildRobotBuffSummary(activeBuffs, absoluteRobotId, maxEntries: 2),
                 health,
                 500,
                 bullets,
@@ -252,9 +458,22 @@ public sealed class TelemetryStore : ObservableObject
         return values;
     }
 
-    private int? TryReadRobotHealth(int index)
+    private int? TryReadRobotHealth(bool isAllyTeam, int relativeRobotId)
     {
-        if (_globalUnitStatus is null || index >= _globalUnitStatus.RobotHealth.Count)
+        if (_globalUnitStatus is null || relativeRobotId == 6)
+        {
+            return null;
+        }
+
+        var baseIndex = isAllyTeam ? 0 : TeamHealthOrder.Length;
+        var relativeIndex = Array.IndexOf(TeamHealthOrder, relativeRobotId);
+        if (relativeIndex < 0)
+        {
+            return null;
+        }
+
+        var index = baseIndex + relativeIndex;
+        if (index >= _globalUnitStatus.RobotHealth.Count)
         {
             return null;
         }
@@ -262,17 +481,23 @@ public sealed class TelemetryStore : ObservableObject
         return (int)_globalUnitStatus.RobotHealth[index];
     }
 
-    private int? TryReadRobotBullets(int index)
+    private int? TryReadRobotBullets(bool isAllyTeam, int relativeRobotId)
     {
-        if (_globalUnitStatus is null || index >= _globalUnitStatus.RobotBullets.Count)
+        if (_globalUnitStatus is null || !isAllyTeam || relativeRobotId == 6)
         {
             return null;
         }
 
-        return (int)_globalUnitStatus.RobotBullets[index];
+        var index = Array.IndexOf(TeamHealthOrder, relativeRobotId);
+        if (index < 0 || index >= _globalUnitStatus.RobotBullets.Count)
+        {
+            return null;
+        }
+
+        return _globalUnitStatus.RobotBullets[index];
     }
 
-    private CurrentRobotPanelSnapshot BuildCurrentRobotPanel()
+    private CurrentRobotPanelSnapshot BuildCurrentRobotPanel(IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs)
     {
         var robotId = _robotStaticStatus?.RobotId is > 0
             ? (int)_robotStaticStatus.RobotId
@@ -289,7 +514,7 @@ public sealed class TelemetryStore : ObservableObject
                 : "HP --/--",
             fireRate.HasValue ? TelemetryText.FormatFireRate(fireRate.Value) : "ROF --",
             ammo.HasValue ? TelemetryText.FormatAmmo(ammo.Value) : "AMMO --",
-            "BUFF --",
+            robotId.HasValue ? BuildRobotBuffSummary(activeBuffs, robotId.Value, maxEntries: int.MaxValue) : "BUFF --",
             currentHealth,
             maxHealth,
             ammo);
@@ -302,19 +527,17 @@ public sealed class TelemetryStore : ObservableObject
 
     private ConnectionState BuildLinkState(DateTimeOffset now)
     {
-        if (_mqttState == ConnectionState.Connecting || _videoState == ConnectionState.Connecting)
+        if (_mqttState == ConnectionState.Connecting)
         {
             return ConnectionState.Connecting;
         }
 
-        if (_mqttState == ConnectionState.NotConnected && _videoState == ConnectionState.NotConnected)
+        if (_mqttState == ConnectionState.NotConnected)
         {
             return ConnectionState.NotConnected;
         }
 
-        if (_mqttState == ConnectionState.Ready &&
-            _videoState == ConnectionState.Ready &&
-            !IsTelemetryStale(now))
+        if (_mqttState == ConnectionState.Ready && !IsTelemetryStale(now))
         {
             return ConnectionState.Ready;
         }
@@ -339,11 +562,6 @@ public sealed class TelemetryStore : ObservableObject
             return "Telemetry stale";
         }
 
-        if (_videoState != ConnectionState.Ready)
-        {
-            return _videoNote ?? "Video waiting";
-        }
-
         return "Telemetry live";
     }
 
@@ -362,4 +580,256 @@ public sealed class TelemetryStore : ObservableObject
     {
         return _lastTelemetryAt.HasValue && now - _lastTelemetryAt.Value > TimeSpan.FromSeconds(2);
     }
+
+    private void RemoveExpiredStateLocked(DateTimeOffset now)
+    {
+        _activeMechanisms = _activeMechanisms
+            .Where(mechanism => GetRemainingSeconds(now, mechanism.InitialSeconds, mechanism.ReceivedAt) > 0)
+            .ToList();
+
+        _activeBuffs = _activeBuffs
+            .Where(entry => GetRemainingSeconds(now, entry.Value.InitialSeconds, entry.Value.ReceivedAt) > 0)
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+    }
+
+    private IReadOnlyList<RobotBuffTelemetrySnapshot> BuildActiveBuffSnapshots(DateTimeOffset now)
+    {
+        return _activeBuffs.Values
+            .Select(buff => BuildBuffSnapshot(now, buff))
+            .Where(snapshot => snapshot is not null)
+            .Cast<RobotBuffTelemetrySnapshot>()
+            .OrderBy(snapshot => snapshot.RobotId)
+            .ThenBy(snapshot => snapshot.BuffType)
+            .ToArray();
+    }
+
+    private RobotBuffTelemetrySnapshot? BuildBuffSnapshot(DateTimeOffset now, BuffState buff)
+    {
+        var remainingSeconds = GetRemainingSeconds(now, buff.InitialSeconds, buff.ReceivedAt);
+        if (remainingSeconds <= 0)
+        {
+            return null;
+        }
+
+        return new RobotBuffTelemetrySnapshot(
+            buff.RobotId,
+            buff.BuffType,
+            buff.BuffLevel,
+            buff.MaxSeconds,
+            remainingSeconds,
+            BuildBuffSummaryText(buff.BuffType, buff.BuffLevel, remainingSeconds));
+    }
+
+    private IReadOnlyList<SpecialMechanismTelemetrySnapshot> BuildMechanismSnapshots(DateTimeOffset now)
+    {
+        return _activeMechanisms
+            .Select(mechanism => BuildMechanismSnapshot(now, mechanism))
+            .Where(snapshot => snapshot is not null)
+            .Cast<SpecialMechanismTelemetrySnapshot>()
+            .OrderBy(snapshot => snapshot.MechanismId)
+            .ToArray();
+    }
+
+    private SpecialMechanismTelemetrySnapshot? BuildMechanismSnapshot(DateTimeOffset now, MechanismState mechanism)
+    {
+        var remainingSeconds = GetRemainingSeconds(now, mechanism.InitialSeconds, mechanism.ReceivedAt);
+        if (remainingSeconds <= 0)
+        {
+            return null;
+        }
+
+        return new SpecialMechanismTelemetrySnapshot(
+            mechanism.MechanismId,
+            remainingSeconds,
+            BuildMechanismSummary(mechanism.MechanismId, remainingSeconds));
+    }
+
+    private IReadOnlyList<RadarRobotTelemetrySnapshot> BuildRadarSnapshots()
+    {
+        if (_radarSlots.Count == 0)
+        {
+            return [];
+        }
+
+        var enemyIds = _isConfiguredBlue ? RedRobotIds : BlueRobotIds;
+        var allyIds = _isConfiguredBlue ? BlueRobotIds : RedRobotIds;
+        var results = new List<RadarRobotTelemetrySnapshot>(_radarSlots.Count);
+
+        foreach (var slot in _radarSlots)
+        {
+            if (slot.SlotIndex >= 12)
+            {
+                continue;
+            }
+
+            var isEnemy = slot.SlotIndex < RadarRelativeOrder.Length;
+            var relativeIndex = slot.SlotIndex % RadarRelativeOrder.Length;
+            var robotId = isEnemy ? enemyIds[relativeIndex] : allyIds[relativeIndex];
+
+            results.Add(new RadarRobotTelemetrySnapshot(
+                robotId,
+                slot.PositionXcm,
+                slot.PositionYcm,
+                slot.HighlightState,
+                slot.HighlightState == 1 || slot.HighlightState == 2,
+                slot.HighlightState == 2));
+        }
+
+        return results;
+    }
+
+    private int ResolveTeamRobotId(int relativeRobotId, bool isAllyTeam)
+    {
+        return ResolveTeamRobotIds(isAllyTeam).TryGetValue(relativeRobotId, out var absoluteRobotId)
+            ? absoluteRobotId
+            : relativeRobotId;
+    }
+
+    private IReadOnlyDictionary<int, int> ResolveTeamRobotIds(bool isAllyTeam)
+    {
+        var teamIds = isAllyTeam
+            ? (_isConfiguredBlue ? BlueRobotIds : RedRobotIds)
+            : (_isConfiguredBlue ? RedRobotIds : BlueRobotIds);
+
+        return new Dictionary<int, int>
+        {
+            [1] = teamIds[0],
+            [2] = teamIds[1],
+            [3] = teamIds[2],
+            [4] = teamIds[3],
+            [6] = teamIds[4],
+            [7] = teamIds[5]
+        };
+    }
+
+    private static int GetRemainingSeconds(DateTimeOffset now, int initialSeconds, DateTimeOffset receivedAt)
+    {
+        var elapsed = (int)Math.Floor((now - receivedAt).TotalSeconds);
+        return Math.Max(0, initialSeconds - elapsed);
+    }
+
+    private static string BuildEventSummary(int eventId, string rawParam)
+    {
+        var values = ParseIntList(rawParam);
+
+        return eventId switch
+        {
+            1 when values.Count >= 2 => $"击杀 {values[1]}->{values[0]}",
+            2 when values.Count >= 1 => $"前哨站摧毁 {values[0]}",
+            3 => string.IsNullOrWhiteSpace(rawParam) ? "大能量机关激活" : $"大能量机关 {rawParam}",
+            4 when values.Count >= 1 => $"能量机关激活 {values[0]}",
+            5 when values.Count >= 1 => $"己方英雄狙击 {values[0]}",
+            6 when values.Count >= 1 => $"对方英雄狙击 {values[0]}",
+            7 => "对方呼叫空中支援",
+            8 when values.Count >= 1 => $"对方空支被反制 {values[0]}",
+            9 when values.Count >= 2 => $"飞镖命中 方{values[0]} 目标{values[1]}",
+            10 => "对方飞镖闸门开启",
+            11 => "基地遭到攻击",
+            12 => "对方前哨站停转",
+            13 => "对方基地护甲展开",
+            14 => "对方请求四级装配",
+            15 => $"装配结果 {BuildAssemblyResultText(values.FirstOrDefault())}",
+            _ => $"事件 {eventId}"
+        };
+    }
+
+    private static string BuildAssemblyResultText(int resultCode)
+    {
+        return resultCode switch
+        {
+            0 => "成功",
+            1 => "拔出",
+            2 => "超时",
+            3 => "离开装配区过久",
+            4 => "工程战亡",
+            5 => "四级协作超时",
+            6 => "主动退出",
+            7 => "结算未检测到能量单元",
+            8 => "缓冲期到期",
+            _ => resultCode.ToString(CultureInfo.InvariantCulture)
+        };
+    }
+
+    private static IReadOnlyList<int> ParseIntList(string rawParam)
+    {
+        if (string.IsNullOrWhiteSpace(rawParam))
+        {
+            return [];
+        }
+
+        var values = new List<int>();
+        foreach (var segment in rawParam.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (int.TryParse(segment, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value))
+            {
+                values.Add(value);
+            }
+        }
+
+        return values;
+    }
+
+    private static string BuildMechanismSummary(int mechanismId, int remainingSeconds)
+    {
+        return mechanismId switch
+        {
+            1 => $"己方堡垒占领 {remainingSeconds}s",
+            2 => $"对方堡垒占领 {remainingSeconds}s",
+            _ => $"机制 {mechanismId} {remainingSeconds}s"
+        };
+    }
+
+    private static string BuildBuffSummaryText(int buffType, int buffLevel, int remainingSeconds)
+    {
+        var label = buffType switch
+        {
+            1 => $"ATK+{buffLevel}%",
+            2 when buffLevel >= 0 => $"DEF+{buffLevel}%",
+            2 => $"VUL{buffLevel}%",
+            3 => $"COOL+{buffLevel}",
+            4 => $"PWR+{buffLevel}%",
+            5 => $"HEAL+{buffLevel}%",
+            6 => $"AMMO+{buffLevel}",
+            7 => $"MOVE+{buffLevel}",
+            _ => $"BUFF{buffType}:{buffLevel}"
+        };
+
+        return $"{label} {remainingSeconds}s";
+    }
+
+    private static string BuildRobotBuffSummary(
+        IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs,
+        int robotId,
+        int maxEntries)
+    {
+        var summaries = activeBuffs
+            .Where(buff => buff.RobotId == robotId)
+            .OrderBy(buff => buff.BuffType)
+            .Take(maxEntries)
+            .Select(buff => buff.SummaryText)
+            .ToArray();
+
+        return summaries.Length == 0 ? "BUFF --" : string.Join(" | ", summaries);
+    }
+
+    private sealed record EventState(int EventId, string RawParam, string SummaryText);
+
+    private sealed record MechanismState(int MechanismId, int InitialSeconds, DateTimeOffset ReceivedAt);
+
+    private sealed record BuffKey(int RobotId, int BuffType);
+
+    private sealed record BuffState(
+        int RobotId,
+        int BuffType,
+        int BuffLevel,
+        int MaxSeconds,
+        int InitialSeconds,
+        DateTimeOffset ReceivedAt);
+
+    private sealed record RadarSlotState(
+        int SlotIndex,
+        int PositionXcm,
+        int PositionYcm,
+        int HighlightState,
+        DateTimeOffset ReceivedAt);
 }

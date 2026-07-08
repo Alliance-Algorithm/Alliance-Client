@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Alliance.Client.Shell"
+        x:Class="Alliance.Client.Shell.MessageViewerWindow"
+        x:DataType="vm:MessageViewerWindowViewModel"
+        Width="800" Height="600"
+        Title="MQTT Messages"
+        Background="#0A0E14">
+  <Grid ColumnDefinitions="200,*">
+    <!-- Left: Topic list -->
+    <Border Grid.Column="0" Background="#0D1117" BorderBrush="#2D4657" BorderThickness="0,0,1,0"
+            Padding="8">
+      <ListBox ItemsSource="{Binding Topics}"
+               SelectedItem="{Binding SelectedTopic}"
+               Background="Transparent"
+               BorderThickness="0"
+               Foreground="#C9D1D9"
+               FontSize="13"
+               FontWeight="SemiBold">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <Border Padding="8,6" CornerRadius="6" Margin="0,1">
+              <TextBlock Text="{Binding}" />
+            </Border>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+    </Border>
+
+    <!-- Right: Field details -->
+    <ScrollViewer Grid.Column="1" Padding="16">
+      <ItemsControl ItemsSource="{Binding Fields}">
+        <ItemsControl.ItemTemplate>
+          <DataTemplate>
+            <TextBlock Text="{Binding}" Margin="0,3"
+                       Foreground="#C9D1D9" FontFamily="{DynamicResource AppMono}"
+                       FontSize="12" />
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </ScrollViewer>
+  </Grid>
+</Window>

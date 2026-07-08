@@ -2,7 +2,6 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:video="using:Alliance.Client.Features.Video"
         xmlns:hud="using:Alliance.Client.Features.Hud"
         xmlns:vm="using:Alliance.Client.Shell"
         x:Class="Alliance.Client.Shell.MainWindow"
@@ -20,16 +19,12 @@
   <Grid>
     <!-- 视频画面 + HUD 叠层 -->
     <Grid>
-      <video:VideoView DataContext="{Binding Video}" />
       <hud:HudOverlay DataContext="{Binding Hud}" />
 
       <!-- 左上角：连接状态 -->
       <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Spacing="8">
         <Border Classes="status-chip warning-chip">
           <TextBlock Classes="chip-text" Text="{Binding MqttStatusLabel}" />
-        </Border>
-        <Border Classes="status-chip outline-chip">
-          <TextBlock Classes="chip-text" Text="{Binding VideoStatusLabel}" />
         </Border>
       </StackPanel>
 
@@ -70,6 +65,11 @@
               </DataTemplate>
             </ListBox.ItemTemplate>
           </ListBox>
+        </Border>
+        <Border Classes="status-chip accent-chip"
+                PointerPressed="OnMessageViewerPressed"
+                Cursor="Hand">
+          <TextBlock Classes="chip-text" Text="MESSAGES" />
         </Border>
       </StackPanel>
 

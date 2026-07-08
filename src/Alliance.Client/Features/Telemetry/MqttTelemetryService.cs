@@ -20,8 +20,12 @@ public sealed class MqttTelemetryService : ITelemetryService
         nameof(GameStatus),
         nameof(GlobalUnitStatus),
         nameof(GlobalLogisticsStatus),
+        nameof(GlobalSpecialMechanism),
+        nameof(Event),
         nameof(RobotStaticStatus),
-        nameof(RobotDynamicStatus)
+        nameof(RobotDynamicStatus),
+        nameof(Buff),
+        nameof(RadarInfoToClient)
     ];
 
     private readonly AppSettings _settings;
@@ -305,12 +309,24 @@ public sealed class MqttTelemetryService : ITelemetryService
                 case nameof(GlobalLogisticsStatus):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyGlobalLogisticsStatus(GlobalLogisticsStatus.Parser.ParseFrom(payload)));
+                case nameof(GlobalSpecialMechanism):
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyGlobalSpecialMechanism(GlobalSpecialMechanism.Parser.ParseFrom(payload)));
+                case nameof(Event):
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyEvent(Event.Parser.ParseFrom(payload)));
                 case nameof(RobotStaticStatus):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRobotStaticStatus(RobotStaticStatus.Parser.ParseFrom(payload)));
                 case nameof(RobotDynamicStatus):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRobotDynamicStatus(RobotDynamicStatus.Parser.ParseFrom(payload)));
+                case nameof(Buff):
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyBuff(Buff.Parser.ParseFrom(payload)));
+                case nameof(RadarInfoToClient):
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload)));
                 default:
                     _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
                     return Task.CompletedTask;

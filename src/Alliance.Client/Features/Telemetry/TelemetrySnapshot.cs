@@ -107,11 +107,35 @@ public sealed record CurrentRobotPanelSnapshot(
     };
 }
 
+public sealed record EventTelemetrySnapshot(
+    int EventId,
+    string RawParam,
+    string SummaryText);
+
+public sealed record SpecialMechanismTelemetrySnapshot(
+    int MechanismId,
+    int RemainingSeconds,
+    string SummaryText);
+
+public sealed record RadarRobotTelemetrySnapshot(
+    int RobotId,
+    int? PositionXcm,
+    int? PositionYcm,
+    int HighlightState,
+    bool IsHighlighted,
+    bool IsOfflineHighlighted);
+
+public sealed record RobotBuffTelemetrySnapshot(
+    int RobotId,
+    int BuffType,
+    int BuffLevel,
+    int MaxSeconds,
+    int RemainingSeconds,
+    string SummaryText);
+
 public sealed record TelemetrySnapshot
 {
     public ConnectionState MqttState { get; init; } = ConnectionState.NotConnected;
-
-    public ConnectionState VideoState { get; init; } = ConnectionState.NotConnected;
 
     public ConnectionState LinkState { get; init; } = ConnectionState.NotConnected;
 
@@ -131,6 +155,14 @@ public sealed record TelemetrySnapshot
 
     public CurrentRobotPanelSnapshot CurrentRobot { get; init; } =
         CurrentRobotPanelSnapshot.Empty("Robot --");
+
+    public EventTelemetrySnapshot? LatestEvent { get; init; }
+
+    public IReadOnlyList<SpecialMechanismTelemetrySnapshot> ActiveMechanisms { get; init; } = [];
+
+    public IReadOnlyList<RadarRobotTelemetrySnapshot> RadarRobots { get; init; } = [];
+
+    public IReadOnlyList<RobotBuffTelemetrySnapshot> ActiveBuffs { get; init; } = [];
 
     public string LastUpdateText { get; init; } = "Awaiting MQTT packets";
 

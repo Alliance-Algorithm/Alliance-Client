@@ -5,7 +5,7 @@ artifacts/
 publish/
 
 # Docs
-docs/
+.docs/
 
 # Test and coverage outputs
 TestResults/
@@ -55,3 +55,4 @@ Thumbs.db
 # CLI
 .agents/
 .codex/
+.mimocode/

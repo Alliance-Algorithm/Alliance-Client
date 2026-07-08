@@ -2,7 +2,6 @@ using Alliance.Client.Features.Control;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
-using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Logging;
 using Alliance.Client.Infrastructure.Runtime;
 using Alliance.Client.Shell;
@@ -36,15 +35,14 @@ public static class AppBootstrapper
 
         services.AddSingleton<TelemetryStore>();
         services.AddSingleton<ITelemetryService, MqttTelemetryService>();
-        services.AddSingleton<IVideoStreamService, UdpHevcVideoStreamService>();
         services.AddSingleton<ICommandService, NoOpCommandService>();
         services.AddSingleton<StartupLogger>();
         services.AddSingleton<AppRuntimeCoordinator>();
 
-        services.AddSingleton<VideoViewModel>();
         services.AddSingleton<HudOverlayViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
+        services.AddSingleton<MessageViewerWindowViewModel>();
 
         return services.BuildServiceProvider();
     }
