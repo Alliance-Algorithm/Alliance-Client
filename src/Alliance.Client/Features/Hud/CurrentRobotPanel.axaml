@@ -1,0 +1,73 @@
+<!--
+CurrentRobotPanel - 当前操控机器人状态面板
+
+渲染结构：
+┌─────────────────────┐
+│        CURRENT                           │  ← 固定标题
+│        Robot 1                           │  ← 机器人编号
+│  ████████████████░  450 │  ← 大号血条 + 血量数字
+│  AMMO    ROF    BUFF                     │  ← 属性标签
+│   28    4.2   ATK+15%                    │  ← 属性值
+└─────────────────────┘
+
+数据绑定：CurrentRobotPanelSnapshot
+- RobotLabel: 机器人标识 (如 "Robot 1")
+- HealthText: 血量文字 (如 "HP 450/500")
+- HealthPercent: 血量百分比，用于大血条宽度
+- AmmoText: 弹药文字
+- FireRateText: 射速文字
+- BuffText: Buff状态文字
+
+特点：
+- 使用hud-panel-accent样式（强调色背景）
+- 血条使用大号版本(hud-bar-bg-lg / hud-bar-fill-lg)
+- 底部三列显示弹药、射速、Buff详细信息
+- 位于HUD左下角
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.CurrentRobotPanel"
+             x:DataType="telemetry:CurrentRobotPanelSnapshot"
+             mc:Ignorable="d">
+    <Border Classes="hud-panel-accent">
+        <StackPanel Spacing="6">
+            <TextBlock Classes="hud-caption" Text="CURRENT" />
+            <TextBlock Classes="hud-value"
+                       Text="{Binding RobotLabel}" />
+            <!-- 第一行：血量 -->
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <Border Classes="hud-bar-bg-lg" VerticalAlignment="Center">
+                    <Border Classes="hud-bar-fill-lg"
+                            HorizontalAlignment="Left"
+                            Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                </Border>
+                <TextBlock Grid.Column="1" Classes="hud-value"
+                           VerticalAlignment="Center"
+                           FontSize="14"
+                           Text="{Binding HealthText}" />
+            </Grid>
+            <!-- 第二行：弹药 + 射速 + buff -->
+            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+                <StackPanel Spacing="1">
+                    <TextBlock Classes="hud-detail" Text="AMMO" />
+                    <TextBlock Classes="hud-value" FontSize="12"
+                               Text="{Binding AmmoText}" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Spacing="1">
+                    <TextBlock Classes="hud-detail" Text="ROF" />
+                    <TextBlock Classes="hud-value" FontSize="12"
+                               Text="{Binding FireRateText}" />
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="1">
+                    <TextBlock Classes="hud-detail" Text="BUFF" />
+                    <TextBlock Classes="hud-value" FontSize="12"
+                               Text="{Binding BuffText}" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Border>
+</UserControl>

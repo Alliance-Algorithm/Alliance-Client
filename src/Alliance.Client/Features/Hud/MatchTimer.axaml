@@ -1,0 +1,32 @@
+<!--
+MatchTimer - 比赛倒计时控件
+
+渲染结构：
+┌─────────┐
+│     04:32        │ 倒计时数字 (大字号)
+│  Telemetry live  │ 状态警告文字
+└─────────┘
+
+数据绑定：TelemetrySnapshot
+- MatchTimeText: 倒计时文字 (如 "04:32"、"00:00")
+- WarningText: 状态提示 (如 "Telemetry live"、"MQTT offline"、"Telemetry stale")
+
+特点：
+- 居中显示在HUD顶部中间位置
+- 倒计时使用大号字体突出显示
+- 警告文字根据连接状态动态变化
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             x:Class="Alliance.Client.Features.Hud.MatchTimer"
+             x:DataType="telemetry:TelemetrySnapshot"
+             mc:Ignorable="d">
+    <Border Classes="hud-timer">
+        <TextBlock Classes="hud-countdown"
+                   HorizontalAlignment="Center"
+                   Text="{Binding MatchTimeText}" />
+    </Border>
+</UserControl>

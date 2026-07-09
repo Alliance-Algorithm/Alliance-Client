@@ -1,0 +1,134 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Alliance.Client.Features.Settings"
+        x:Class="Alliance.Client.Features.Settings.SettingsDialog"
+        x:DataType="vm:SettingsDialogViewModel"
+        Width="680" Height="440"
+        Title="Settings"
+        Background="#0A0E14"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        mc:Ignorable="d">
+  <Border BorderBrush="#2D4657" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+    <Grid ColumnDefinitions="160,*">
+
+      <!-- ===== 左侧边栏 ===== -->
+      <Border Grid.Column="0" Background="#0D1117" BorderBrush="#2D4657" BorderThickness="0,0,1,0">
+        <StackPanel Spacing="0" Margin="0,12,0,0">
+          <TextBlock Text="SETTINGS" FontWeight="Bold" FontSize="11"
+                     Foreground="{DynamicResource AccentBrush}" LetterSpacing="1.5"
+                     Margin="16,0,16,12" />
+          <Border x:Name="BasicNav" Classes="settings-nav-item"
+                  PointerPressed="OnBasicNavPressed" Cursor="Hand">
+            <TextBlock Text="Basic" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+          </Border>
+          <Border x:Name="MessageNav" Classes="settings-nav-item"
+                  PointerPressed="OnMessageNavPressed" Cursor="Hand">
+            <TextBlock Text="Message" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- ===== 右侧内容区 ===== -->
+      <Grid Grid.Column="1">
+
+        <!-- Basic 页面 -->
+        <StackPanel IsVisible="{Binding IsBasicTab}" Spacing="16" Margin="20,16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="CONNECTION" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Text="MQTT" Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding MqttStatusLabel}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             HorizontalAlignment="Right" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Text="Link" Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding LinkStatusLabel}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             HorizontalAlignment="Right" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Text="Last Update" Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding LastUpdateText}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             HorizontalAlignment="Right" />
+                </Grid>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="CLIENT ID" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <ComboBox ItemsSource="{Binding AvailableClientIds}"
+                          SelectedItem="{Binding SelectedClientId}"
+                          Background="#1A2A33"
+                          Foreground="{DynamicResource TextBrush}"
+                          BorderBrush="#2D4657"
+                          BorderThickness="1"
+                          FontSize="13"
+                          FontFamily="{DynamicResource AppMono}"
+                          MinWidth="100" />
+                <Button Grid.Column="1" Content="Apply"
+                        Classes="settings-apply-btn"
+                        Command="{Binding ApplyClientIdCommand}" />
+              </Grid>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Message 页面 -->
+        <Grid IsVisible="{Binding IsMessageTab}" ColumnDefinitions="160,*">
+          <Border Grid.Column="0" Background="#0D1117" BorderBrush="#2D4657" BorderThickness="0,0,1,0"
+                  Padding="4">
+            <ListBox ItemsSource="{Binding Topics}"
+                     SelectedItem="{Binding SelectedTopic}"
+                     Background="Transparent"
+                     BorderThickness="0"
+                     Foreground="{DynamicResource TextBrush}"
+                     FontSize="12"
+                     FontWeight="SemiBold">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="8,6" CornerRadius="4" Margin="0,1">
+                    <TextBlock Text="{Binding}" />
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+          </Border>
+
+          <ScrollViewer Grid.Column="1" Padding="12,8">
+            <ItemsControl ItemsSource="{Binding Fields}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <TextBlock Text="{Binding}" Margin="0,2"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontFamily="{DynamicResource AppMono}"
+                             FontSize="11" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </ScrollViewer>
+        </Grid>
+
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

@@ -1,0 +1,84 @@
+<!--
+RobotStatusBar - 机器人状态列表控件
+
+渲染结构（每个机器人独立框起来，占1x1，三行显示）：
+┌─────────────────────┐
+│  1  ████████████  450│ 第一行：编号 + 血条 + 血量
+│     AMMO 28          │ 第二行：允许发弹量
+│     ATK+15% 12s      │ 第三行：增益
+└─────────────────────┘
+┌─────────────────────┐
+│  2  █████████░░░  380│
+│     AMMO 25          │
+│     DEF+10% 8s       │
+└─────────────────────┘
+... (6 robots, 占满整个高度)
+
+数据绑定：RobotStatusBarViewModel
+- Robots: 机器人状态集合 (IReadOnlyList<RobotStatusSnapshot>)
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:Alliance.Client.Features.Hud"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.RobotStatusBar"
+             x:DataType="vm:RobotStatusBarViewModel"
+             mc:Ignorable="d">
+    <Border Classes="hud-panel" VerticalAlignment="Stretch" Padding="6">
+        <Grid RowDefinitions="*,*,*,*,*,*">
+            <ItemsControl Grid.Row="0" Grid.RowSpan="6"
+                          ItemsSource="{Binding Robots}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <UniformGrid Rows="6" Columns="1" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="telemetry:RobotStatusSnapshot">
+                        <Border Classes="hud-robot-cell" Margin="0,2"
+                                VerticalAlignment="Stretch">
+                            <Grid RowDefinitions="*,*,*">
+                                <!-- 第一行：编号 + 血条 + 血量 -->
+                                <Grid Grid.Row="0" ColumnDefinitions="18,*,Auto" ColumnSpacing="4">
+                                    <TextBlock Classes="hud-slot"
+                                               Text="{Binding SlotLabel}"
+                                               VerticalAlignment="Center" />
+                                    <Border Classes="hud-bar-bg"
+                                            Grid.Column="1"
+                                            VerticalAlignment="Center"
+                                            IsVisible="{Binding ShowHealthBar}">
+                                        <Border Classes="hud-bar-fill"
+                                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                                HorizontalAlignment="Left"
+                                                Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Classes="hud-detail"
+                                               Text="{Binding HealthText}"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowHealthBar}" />
+                                </Grid>
+                                <!-- 第二行：弹药 -->
+                                <Grid Grid.Row="1" ColumnDefinitions="18,*" ColumnSpacing="4">
+                                    <TextBlock Classes="hud-slot"
+                                               Text="{Binding SlotLabel}"
+                                               IsVisible="{Binding !ShowHealthBar}" />
+                                    <TextBlock Classes="hud-detail"
+                                               Text="{Binding AmmoText}"
+                                               VerticalAlignment="Center" />
+                                </Grid>
+                                <!-- 第三行：增益 -->
+                                <TextBlock Grid.Row="2" Classes="hud-detail"
+                                           Text="{Binding BuffText}"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Grid>
+    </Border>
+</UserControl>

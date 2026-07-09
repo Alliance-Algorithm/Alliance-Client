@@ -95,6 +95,16 @@
     <Setter Property="Background" Value="#FF8766" />
   </Style>
 
+  <!-- 己方血条颜色（蓝色） -->
+  <Style Selector="Border.ally">
+    <Setter Property="Background" Value="#4A9EFF" />
+  </Style>
+
+  <!-- 敌方血条颜色（红色） -->
+  <Style Selector="Border.enemy">
+    <Setter Property="Background" Value="#FF4A4A" />
+  </Style>
+
   <!-- 顶部面板小型血量条 -->
   <Style Selector="Border.hud-bar-bg-sm">
     <Setter Property="Background" Value="#1A2A33" />
@@ -134,6 +144,64 @@
     <Setter Property="Background" Value="#FF8766" />
   </Style>
 
+  <!-- 顶部面板血量条背景 — outposts（比例15） -->
+  <Style Selector="Border.hud-bar-bg-outpost">
+    <Setter Property="Background" Value="#1A2A33" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="Width" Value="45" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <!-- 顶部面板血量条背景 — base（比例50） -->
+  <Style Selector="Border.hud-bar-bg-base">
+    <Setter Property="Background" Value="#1A2A33" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="Width" Value="150" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <!-- 顶部面板血量条填充 -->
+  <Style Selector="Border.hud-bar-fill-center">
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="Background" Value="#4A9EFF" />
+  </Style>
+
+  <!-- 血条内数值文字 -->
+  <Style Selector="TextBlock.hud-bar-value">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="9" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#FFFFFF" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+  </Style>
+
+  <!-- 血条旁的标签文字 -->
+  <Style Selector="TextBlock.hud-bar-label">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- 累计总伤数值 -->
+  <Style Selector="TextBlock.hud-damage-value">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <!-- 经济数值 -->
+  <Style Selector="TextBlock.hud-economy-value">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+
   <!-- 连接状态点 -->
   <Style Selector="Ellipse.hud-status-dot">
     <Setter Property="Width" Value="7" />
@@ -166,23 +234,56 @@
     <Setter Property="Foreground" Value="#5A7080" />
   </Style>
 
-  <!-- 准星 -->
-  <Style Selector="Border.crosshair-line">
-    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-    <Setter Property="Opacity" Value="0.7" />
-  </Style>
-
-  <Style Selector="Border.crosshair-ring">
-    <Setter Property="Background" Value="Transparent" />
-    <Setter Property="BorderBrush" Value="#55D7C7" />
+  <!-- 调试区域边框 -->
+  <Style Selector="Border.hud-region">
+    <Setter Property="BorderBrush" Value="#57D7C780" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="CornerRadius" Value="999" />
-    <Setter Property="Opacity" Value="0.5" />
+    <Setter Property="CornerRadius" Value="4" />
   </Style>
 
-  <Style Selector="Border.crosshair-dot">
-    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
-    <Setter Property="CornerRadius" Value="999" />
-    <Setter Property="Opacity" Value="0.9" />
+  <!-- 设置按钮 -->
+  <Style Selector="Border.settings-btn">
+    <Setter Property="Background" Value="#0D1117CC" />
+    <Setter Property="BorderBrush" Value="#2D4657" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="Cursor" Value="Hand" />
   </Style>
+
+  <Style Selector="Border.settings-btn:pointerover">
+    <Setter Property="Background" Value="#1A2A33CC" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
+  <!-- 设置对话框按钮 -->
+  <Style Selector="Button.settings-apply-btn">
+    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Foreground" Value="#0A0E14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="14,8" />
+    <Setter Property="MinWidth" Value="80" />
+  </Style>
+
+  <!-- 机器人单元格 -->
+  <Style Selector="Border.hud-robot-cell">
+    <Setter Property="Background" Value="#0D111799" />
+    <Setter Property="BorderBrush" Value="#2D465760" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="6,4" />
+  </Style>
+
+  <!-- 设置侧边栏导航项 -->
+  <Style Selector="Border.settings-nav-item">
+    <Setter Property="Padding" Value="16,10" />
+    <Setter Property="Cursor" Value="Hand" />
+  </Style>
+
+  <Style Selector="Border.settings-nav-item:pointerover">
+    <Setter Property="Background" Value="#1A2A3340" />
+  </Style>
+
 </Styles>

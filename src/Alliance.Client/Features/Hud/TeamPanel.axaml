@@ -1,0 +1,82 @@
+<!--
+TeamPanel - 比赛信息面板控件
+
+己方：Outpost在左，Base在右，血条蓝色，从左往右缩进
+敌方：Base在左，Outpost在右，血条红色，从右往左缩进
+-->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.TeamPanel"
+             x:DataType="telemetry:TeamPanelSnapshot"
+             mc:Ignorable="d">
+    <Border Classes="hud-panel">
+        <StackPanel Spacing="6">
+            <!-- 第一行：建筑血量（数值在血条内） -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <!-- 己方布局：Outpost(左) + Base(右)，从左往右缩进 -->
+                <Grid Grid.Column="0" IsVisible="{Binding !IsEnemy}">
+                    <Border Classes="hud-bar-bg-outpost">
+                        <Border Classes="hud-bar-fill-center"
+                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                HorizontalAlignment="Right"
+                                Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
+                    </Border>
+                    <TextBlock Classes="hud-bar-value"
+                               HorizontalAlignment="Center"
+                               Text="{Binding OutpostHealthNumber}" />
+                </Grid>
+                <Grid Grid.Column="1" IsVisible="{Binding !IsEnemy}">
+                    <Border Classes="hud-bar-bg-base">
+                        <Border Classes="hud-bar-fill-center"
+                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                HorizontalAlignment="Right"
+                                Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
+                    </Border>
+                    <TextBlock Classes="hud-bar-value"
+                               HorizontalAlignment="Center"
+                               Text="{Binding BaseHealthNumber}" />
+                </Grid>
+
+                <!-- 敌方布局：Base(左) + Outpost(右)，从右往左缩进 -->
+                <Grid Grid.Column="0" IsVisible="{Binding IsEnemy}">
+                    <Border Classes="hud-bar-bg-base">
+                        <Border Classes="hud-bar-fill-center"
+                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                HorizontalAlignment="Left"
+                                Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
+                    </Border>
+                    <TextBlock Classes="hud-bar-value"
+                               HorizontalAlignment="Center"
+                               Text="{Binding BaseHealthNumber}" />
+                </Grid>
+                <Grid Grid.Column="1" IsVisible="{Binding IsEnemy}">
+                    <Border Classes="hud-bar-bg-outpost">
+                        <Border Classes="hud-bar-fill-center"
+                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                HorizontalAlignment="Left"
+                                Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
+                    </Border>
+                    <TextBlock Classes="hud-bar-value"
+                               HorizontalAlignment="Center"
+                               Text="{Binding OutpostHealthNumber}" />
+                </Grid>
+            </Grid>
+
+            <!-- 第二行：累计总伤 -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">
+                <TextBlock Classes="hud-detail" Text="累计总伤" VerticalAlignment="Center" />
+                <TextBlock Classes="hud-damage-value"
+                           Text="{Binding DamageValueText}" />
+            </StackPanel>
+
+            <!-- 第三行：经济 -->
+            <TextBlock Classes="hud-economy-value"
+                       HorizontalAlignment="Center"
+                       Text="{Binding EconomyDisplayText}" />
+        </StackPanel>
+    </Border>
+</UserControl>

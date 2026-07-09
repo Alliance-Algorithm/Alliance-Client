@@ -2,6 +2,8 @@
 
 实时机器人对战的桌面客户端，基于 Avalonia 构建。通过 MQTT 接收遥测数据，通过 UDP 接收 HEVC 视频流，在 HUD 叠加层中实时展示比赛状态。
 
+![](./docs/UI.png)
+
 ## 项目结构
 
 ```
@@ -129,6 +131,8 @@ dotnet test
 | `NoOpCommandService` | `ICommandService` | 指令发送（当前为空实现占位） |
 | `TelemetryStore` | — | 全局状态存储，线程安全 |
 | `AppRuntimeCoordinator` | — | 协调各服务的启动和停止 |
+
+视频链路详细流程见 [docs/udp-3334-to-ui-image-flow.md](docs/udp-3334-to-ui-image-flow.md)，其中说明了从 UDP `3334` 监听、分片重组、HEVC 解码到 Avalonia `Image` 展示图像的完整路径。
 
 ## 开发指南
 

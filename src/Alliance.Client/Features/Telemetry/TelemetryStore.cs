@@ -366,7 +366,8 @@ public sealed class TelemetryStore : ObservableObject
                 "ENEMY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyBaseHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyOutpostHealth,
-                _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy),
+                _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy,
+                isEnemy: true),
             AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs),
             EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs),
             CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
@@ -381,7 +382,7 @@ public sealed class TelemetryStore : ObservableObject
         };
     }
 
-    private TeamPanelSnapshot BuildTeamPanel(string sideLabel, int? baseHealth, int? outpostHealth, int? damage)
+    private TeamPanelSnapshot BuildTeamPanel(string sideLabel, int? baseHealth, int? outpostHealth, int? damage, bool isEnemy = false)
     {
         var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
         var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
@@ -398,7 +399,8 @@ public sealed class TelemetryStore : ObservableObject
             1500,
             damage,
             remainingEconomy,
-            totalEconomy);
+            totalEconomy,
+            isEnemy);
     }
 
     private static string FormatEconomy(int? remaining, long? total)

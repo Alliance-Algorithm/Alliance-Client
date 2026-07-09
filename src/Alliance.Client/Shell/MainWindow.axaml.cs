@@ -24,28 +24,11 @@ public partial class MainWindow : Window
         AvaloniaXamlLoader.Load(this);
     }
 
-    private void OnRobotSelectorPressed(object? sender, PointerPressedEventArgs e)
+    private void OnSettingsPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm)
         {
-            vm.ToggleRobotDropdown();
-            e.Handled = true;
-        }
-    }
-
-    private void OnOverlayPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.IsRobotDropdownOpen = false;
-        }
-    }
-
-    private void OnMessageViewerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (DataContext is MainWindowViewModel vm)
-        {
-            vm.OpenMessageViewer();
+            vm.OpenSettings(this);
             e.Handled = true;
         }
     }

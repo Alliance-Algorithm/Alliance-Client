@@ -17,67 +17,18 @@
         ExtendClientAreaTitleBarHeightHint="-1"
         mc:Ignorable="d">
   <Grid>
-    <!-- 视频画面 + HUD 叠层 -->
-    <Grid>
-      <hud:HudOverlay DataContext="{Binding Hud}" />
+    <hud:HudOverlay DataContext="{Binding Hud}" />
 
-      <!-- 左上角：连接状态 -->
-      <StackPanel HorizontalAlignment="Left" VerticalAlignment="Top" Margin="18" Spacing="8">
-        <Border Classes="status-chip warning-chip">
-          <TextBlock Classes="chip-text" Text="{Binding MqttStatusLabel}" />
-        </Border>
+    <!-- 设置按钮（视频区域左上角） -->
+    <Border Classes="settings-btn"
+            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,30,0,0"
+            PointerPressed="OnSettingsPressed" ZIndex="300">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="⚙" FontSize="14" VerticalAlignment="Center"
+                   Foreground="{DynamicResource AccentBrush}" />
+        <TextBlock Text="Settings" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
       </StackPanel>
-
-      <!-- 透明遮罩层（点击外部关闭下拉） -->
-      <Border IsVisible="{Binding IsRobotDropdownOpen}"
-              Background="Transparent"
-              ZIndex="199"
-              PointerPressed="OnOverlayPressed" />
-
-      <!-- 右上角：机器人选择 -->
-      <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="18" Spacing="4"
-                  ZIndex="200">
-        <Border Classes="status-chip accent-chip"
-                PointerPressed="OnRobotSelectorPressed"
-                Cursor="Hand">
-          <TextBlock Classes="chip-text" Text="{Binding CurrentRobotLabel}" />
-        </Border>
-        <Border IsVisible="{Binding IsRobotDropdownOpen}"
-                Background="#15202B"
-                BorderBrush="{DynamicResource AccentBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                Padding="4"
-                MinWidth="120"
-                MaxHeight="240">
-          <ListBox ItemsSource="{Binding RobotIdOptions}"
-                   SelectedItem="{Binding SelectedRobotId}"
-                   Background="Transparent"
-                   BorderThickness="0"
-                   Foreground="{DynamicResource TextBrush}"
-                   FontSize="12"
-                   FontWeight="SemiBold">
-            <ListBox.ItemTemplate>
-              <DataTemplate>
-                <TextBlock Padding="10,6"
-                           Text="{Binding StringFormat='Robot {0}'}"
-                           Foreground="{DynamicResource TextBrush}" />
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-        </Border>
-        <Border Classes="status-chip accent-chip"
-                PointerPressed="OnMessageViewerPressed"
-                Cursor="Hand">
-          <TextBlock Classes="chip-text" Text="MESSAGES" />
-        </Border>
-      </StackPanel>
-
-      <!-- 右下角：状态信息 -->
-      <Border Classes="status-chip outline-chip"
-              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="18">
-        <TextBlock Classes="chip-text" Text="{Binding StatusFootnote}" />
-      </Border>
-    </Grid>
+    </Border>
   </Grid>
 </Window>

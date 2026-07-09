@@ -14,7 +14,8 @@ public sealed record TeamPanelSnapshot(
     int? OutpostMaxHealth = null,
     int? TotalDamage = null,
     int? RemainingEconomy = null,
-    long? TotalEconomy = null)
+    long? TotalEconomy = null,
+    bool IsEnemy = false)
 {
     public static TeamPanelSnapshot CreateEmpty(string sideLabel)
     {
@@ -49,6 +50,28 @@ public sealed record TeamPanelSnapshot(
         >= 0.3 => "damaged",
         _ => "critical"
     };
+
+    public string DamageValueText => TotalDamage.HasValue
+        ? TotalDamage.Value.ToString("N0")
+        : "--";
+
+    public string EconomyValueText => RemainingEconomy.HasValue || TotalEconomy.HasValue
+        ? $"{RemainingEconomy?.ToString() ?? "--"} | {TotalEconomy?.ToString() ?? "--"}"
+        : "-- | --";
+
+    public string EconomyDisplayText => RemainingEconomy.HasValue || TotalEconomy.HasValue
+        ? $"当前经济: {RemainingEconomy?.ToString() ?? "--"} | 累计经济: {TotalEconomy?.ToString() ?? "--"}"
+        : "当前经济: -- | 累计经济: --";
+
+    public string BaseHealthNumber => BaseHealthValue.HasValue
+        ? BaseHealthValue.Value.ToString()
+        : "--";
+
+    public string OutpostHealthNumber => OutpostHealthValue.HasValue
+        ? OutpostHealthValue.Value.ToString()
+        : "--";
+
+    public string TeamColorClass => IsEnemy ? "enemy" : "ally";
 }
 
 public sealed record RobotStatusSnapshot(
@@ -59,19 +82,15 @@ public sealed record RobotStatusSnapshot(
     int? HealthValue = null,
     int? MaxHealthValue = null,
     int? AmmoValue = null,
-    bool ShowHealthBar = true)
+    bool ShowHealthBar = true,
+    bool IsEnemy = false)
 {
     public double HealthPercent =>
         HealthValue.HasValue && MaxHealthValue is > 0
             ? Math.Clamp((double)HealthValue.Value / MaxHealthValue.Value, 0, 1)
             : 0;
 
-    public string BarColorClass => HealthPercent switch
-    {
-        >= 0.6 => "healthy",
-        >= 0.3 => "damaged",
-        _ => "critical"
-    };
+    public string BarColorClass => IsEnemy ? "enemy" : "ally";
 }
 
 public sealed record CurrentRobotPanelSnapshot(
