@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
+using Avalonia.Threading;
 
 namespace Alliance.Client.Features.Video;
 
@@ -8,6 +9,8 @@ public sealed class VideoFeedControl : global::Avalonia.Controls.Control
 {
     public static readonly StyledProperty<VideoStreamStore?> StoreProperty =
         AvaloniaProperty.Register<VideoFeedControl, VideoStreamStore?>(nameof(Store));
+
+    private VideoStreamStore? _subscribedStore;
 
     public VideoStreamStore? Store
     {
@@ -21,7 +24,46 @@ public sealed class VideoFeedControl : global::Avalonia.Controls.Control
 
         if (change.Property == StoreProperty)
         {
+            Subscribe(change.GetNewValue<VideoStreamStore?>());
             InvalidateVisual();
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        Subscribe(null);
+    }
+
+    private void Subscribe(VideoStreamStore? store)
+    {
+        if (ReferenceEquals(_subscribedStore, store))
+        {
+            return;
+        }
+
+        if (_subscribedStore is not null)
+        {
+            _subscribedStore.FrameUpdated -= OnFrameUpdated;
+        }
+
+        _subscribedStore = store;
+
+        if (_subscribedStore is not null)
+        {
+            _subscribedStore.FrameUpdated += OnFrameUpdated;
+        }
+    }
+
+    private void OnFrameUpdated()
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            InvalidateVisual();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(InvalidateVisual);
         }
     }
 

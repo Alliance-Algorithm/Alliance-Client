@@ -2,7 +2,7 @@ using Alliance.Video.Common;
 using Alliance.VideoWorker;
 using Microsoft.Extensions.Logging;
 
-var loggerFactory = LoggerFactory.Create(builder =>
+using var loggerFactory = LoggerFactory.Create(builder =>
 {
     builder.ClearProviders();
     builder.AddSimpleConsole(options =>
@@ -14,6 +14,8 @@ var loggerFactory = LoggerFactory.Create(builder =>
 });
 
 var logger = loggerFactory.CreateLogger("Alliance.VideoWorker");
+
+ParentDeathGuard.Enable(logger);
 
 try
 {

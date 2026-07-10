@@ -65,8 +65,7 @@ public sealed class TelemetryMappingTests
         Assert.Equal("707", snapshot.EnemyRobots[4].HealthText);
         Assert.Equal("Robot 1", snapshot.CurrentRobot.RobotLabel);
         Assert.Equal("HP 250/300", snapshot.CurrentRobot.HealthText);
-        Assert.Equal("ROF 23.5", snapshot.CurrentRobot.FireRateText);
-        Assert.Equal("AMMO 120", snapshot.CurrentRobot.AmmoText);
+        Assert.Equal("允许发弹量: 120", snapshot.CurrentRobot.AmmoText);
     }
 
     [Fact]

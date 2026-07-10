@@ -32,20 +32,16 @@
   </ItemGroup>
 
   <Target Name="CopyVideoWorkerOutput" AfterTargets="Build">
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\Alliance.VideoWorker.csproj&quot; -c $(Configuration) --no-restore"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+
     <ItemGroup>
-      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\Alliance.VideoWorker.dll" />
-      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\Alliance.VideoWorker.deps.json" />
-      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\Alliance.VideoWorker.runtimeconfig.json" />
+      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\**\*" />
     </ItemGroup>
 
-    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\Alliance.VideoWorker.csproj&quot; -c $(Configuration) --no-restore"
-          WorkingDirectory="$(MSBuildProjectDirectory)"
-          ContinueOnError="WarnAndContinue" />
-
     <Copy SourceFiles="@(VideoWorkerArtifacts)"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('%(VideoWorkerArtifacts.FullPath)')" />
+          DestinationFiles="@(VideoWorkerArtifacts->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
   </Target>
 
   <ItemGroup>

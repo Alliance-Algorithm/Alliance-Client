@@ -31,6 +31,8 @@ public sealed class VideoStreamStore : ObservableObject
         private set => SetProperty(ref _surface, value);
     }
 
+    public event Action? FrameUpdated;
+
     public void SetStatus(
         ConnectionState state,
         string statusText,
@@ -71,9 +73,29 @@ public sealed class VideoStreamStore : ObservableObject
             return;
         }
 
-        using var locked = Surface.Lock();
-        var destination = new Span<byte>((void*)locked.Address, frameBytes.Length);
-        frameBytes.CopyTo(destination);
+        using (var locked = Surface.Lock())
+        {
+            var sourceStride = _settings.FrameWidth * 4;
+            var destinationStride = locked.RowBytes;
+            if (destinationStride == sourceStride)
+            {
+                var destination = new Span<byte>((void*)locked.Address, frameBytes.Length);
+                frameBytes.CopyTo(destination);
+            }
+            else
+            {
+                var rows = Math.Min(_settings.FrameHeight, frameBytes.Length / sourceStride);
+                var copyBytes = Math.Min(sourceStride, destinationStride);
+                for (var y = 0; y < rows; y++)
+                {
+                    var source = frameBytes.Slice(y * sourceStride, copyBytes);
+                    var destination = new Span<byte>((void*)(locked.Address + (y * destinationStride)), copyBytes);
+                    source.CopyTo(destination);
+                }
+            }
+        }
+
+        FrameUpdated?.Invoke();
     }
 
     public unsafe void ClearFrame()
@@ -84,7 +106,11 @@ public sealed class VideoStreamStore : ObservableObject
             return;
         }
 
-        using var locked = Surface.Lock();
-        new Span<byte>((void*)locked.Address, _settings.FrameWidth * _settings.FrameHeight * 4).Clear();
+        using (var locked = Surface.Lock())
+        {
+            new Span<byte>((void*)locked.Address, locked.RowBytes * _settings.FrameHeight).Clear();
+        }
+
+        FrameUpdated?.Invoke();
     }
 }

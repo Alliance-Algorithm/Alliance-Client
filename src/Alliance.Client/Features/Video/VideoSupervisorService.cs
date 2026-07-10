@@ -18,6 +18,7 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
     private readonly ILogger<VideoSupervisorService> _logger;
     private CancellationTokenSource? _runtimeCts;
     private Task? _runTask;
+    private DateTimeOffset _lastDiagnosticsAt = DateTimeOffset.MinValue;
 
     public VideoSupervisorService(
         AppSettings settings,
@@ -86,12 +87,23 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
             };
 
             using var pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            using var process = StartWorker(workerMessage);
+            var (process, drainStdout, drainStderr) = StartWorker(workerMessage, cancellationToken);
 
             try
             {
-                await pipeServer.WaitForConnectionAsync(cancellationToken)
-                    .WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+                using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    connectCts.CancelAfter(TimeSpan.FromSeconds(5));
+                    try
+                    {
+                        await pipeServer.WaitForConnectionAsync(connectCts.Token);
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        throw new TimeoutException("Video worker did not connect within 5 seconds.");
+                    }
+                }
+
                 using var reader = new StreamReader(pipeServer, Encoding.UTF8);
                 using var sharedReader = new SharedFrameReader(sharedMemoryPath, _settings.Video.FrameWidth, _settings.Video.FrameHeight);
 
@@ -193,6 +205,15 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
             finally
             {
                 TryTerminate(process);
+                try
+                {
+                    await Task.WhenAll(drainStdout, drainStderr).WaitAsync(TimeSpan.FromSeconds(3));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Draining worker output streams failed during cleanup.");
+                }
+                process.Dispose();
                 TryDelete(sharedMemoryPath);
             }
 
@@ -201,7 +222,7 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         }
     }
 
-    private Process StartWorker(VideoControlMessage workerMessage)
+    private (Process Process, Task DrainStdout, Task DrainStderr) StartWorker(VideoControlMessage workerMessage, CancellationToken cancellationToken)
     {
         var workerDllPath = ResolveWorkerDllPath();
         var payloadJson = JsonSerializer.Serialize(workerMessage, WorkerProtocol.JsonOptions);
@@ -218,9 +239,9 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         };
 
         var process = Process.Start(startInfo) ?? throw new InvalidOperationException("Failed to start Alliance.VideoWorker.");
-        _ = DrainStreamAsync(process.StandardOutput);
-        _ = DrainStreamAsync(process.StandardError);
-        return process;
+        var drainStdout = DrainStreamAsync(process.StandardOutput, isError: false, cancellationToken);
+        var drainStderr = DrainStreamAsync(process.StandardError, isError: true, cancellationToken);
+        return (process, drainStdout, drainStderr);
     }
 
     private static string ResolveWorkerDllPath()
@@ -257,16 +278,51 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                 : "VIDEO READY";
         var metricsText = $"{message.PresentFps:F1} fps | {message.DecodedFrameCount} frames";
 
+        var now = DateTimeOffset.UtcNow;
+        if ((now - _lastDiagnosticsAt).TotalMilliseconds >= 1000)
+        {
+            _lastDiagnosticsAt = now;
+            _logger.LogInformation(
+                "[video-diag] state={State} note={Note} pkts={Packets} assembled={Assembled} decoded={Decoded} presented={Presented} decodeErr={DecodeErrors} fps={Fps:F1} lastPacket={LastPacket} lastFrame={LastFrame}",
+                message.StreamState,
+                message.Note,
+                message.PacketCount,
+                message.AssembledFrameCount,
+                message.DecodedFrameCount,
+                message.PresentedFrameCount,
+                message.DecodeErrorCount,
+                message.PresentFps,
+                message.LastPacketAt?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-",
+                message.LastFrameAt?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-");
+        }
+
         await Dispatcher.UIThread.InvokeAsync(() =>
             _store.SetStatus(state, statusText, metricsText, message.LastPacketAt, message.LastFrameAt, frameVersion));
     }
 
-    private static async Task DrainStreamAsync(StreamReader reader)
+    private async Task DrainStreamAsync(StreamReader reader, bool isError, CancellationToken cancellationToken)
     {
-        while (await reader.ReadLineAsync() is { } line)
+        try
         {
-            _ = line;
+            while (await reader.ReadLineAsync(cancellationToken) is { } line)
+            {
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
+
+                if (isError)
+                {
+                    _logger.LogWarning("[worker] {Line}", line);
+                }
+                else
+                {
+                    _logger.LogInformation("[worker] {Line}", line);
+                }
+            }
         }
+        catch (OperationCanceledException) { }
+        catch (IOException) { }
     }
 
     private static void TryTerminate(Process process)

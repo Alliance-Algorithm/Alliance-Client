@@ -66,7 +66,21 @@ internal sealed class WorkerRuntime : IDisposable
         var heartbeatTask = Task.Run(() => HeartbeatLoopAsync(writer, _cts.Token), _cts.Token);
         var receiveTask = Task.Run(() => ReceiveLoopAsync(_cts.Token), _cts.Token);
 
-        await Task.WhenAll(heartbeatTask, receiveTask);
+        var completed = await Task.WhenAny(heartbeatTask, receiveTask);
+        _cts.Cancel();
+
+        try
+        {
+            await Task.WhenAll(heartbeatTask, receiveTask);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        if (completed.IsFaulted)
+        {
+            await completed;
+        }
     }
 
     private async Task HeartbeatLoopAsync(StreamWriter writer, CancellationToken cancellationToken)
@@ -90,6 +104,7 @@ internal sealed class WorkerRuntime : IDisposable
 
         var packetBuffer = ArrayPool<byte>.Shared.Rent(2048);
         long frameNumber = 0;
+        var lastDiagnosticsAt = DateTimeOffset.UtcNow;
         try
         {
             while (!cancellationToken.IsCancellationRequested)
@@ -122,6 +137,17 @@ internal sealed class WorkerRuntime : IDisposable
                         _status.MarkDecodeError(ex.Message);
                         _logger.LogWarning(ex, "Video decode failed for assembled HEVC frame.");
                     }
+                }
+
+                var now = DateTimeOffset.UtcNow;
+                if ((now - lastDiagnosticsAt).TotalMilliseconds >= 1000)
+                {
+                    lastDiagnosticsAt = now;
+                    var d = _assembler.Diagnostics;
+                    _logger.LogInformation(
+                        "[assembler-diag] lastLen={LastLen} lastFrameId={FrameId} lastFragIdx={FragIdx} lastTotalBytes={TotalBytes} lastExpectedFrags={ExpFrags} pending={Pending} | drops: tooShort={TooShort} badTotal={BadTotal} fragOOR={FragOor} totalMismatch={TotalMismatch} offsetOOR={OffsetOor} expired={Expired} completed={Completed}",
+                        d.LastPacketLength, d.LastFrameId, d.LastFragmentIndex, d.LastTotalBytes, d.LastExpectedFragments, d.PendingAssemblies,
+                        d.DropTooShort, d.DropBadTotalBytes, d.DropFragmentOutOfRange, d.DropTotalMismatch, d.DropOffsetOutOfRange, d.ExpiredAssemblies, d.CompletedFrames);
                 }
             }
         }
@@ -284,17 +310,22 @@ internal sealed class HevcFrameAssembler
 {
     private readonly int _frameAssemblyTimeoutMs;
     private readonly Dictionary<ushort, FrameAssembly> _assemblies = [];
+    private readonly AssemblerDiagnostics _diagnostics = new();
 
     public HevcFrameAssembler(int frameAssemblyTimeoutMs)
     {
         _frameAssemblyTimeoutMs = frameAssemblyTimeoutMs;
     }
 
+    public AssemblerDiagnostics Diagnostics => _diagnostics;
+
     public bool TryAddPacket(ReadOnlySpan<byte> packet, out byte[] frameBytes)
     {
         frameBytes = Array.Empty<byte>();
+        _diagnostics.LastPacketLength = packet.Length;
         if (packet.Length <= 8)
         {
+            _diagnostics.DropTooShort++;
             return false;
         }
 
@@ -303,15 +334,21 @@ internal sealed class HevcFrameAssembler
         var frameId = (ushort)((packet[0] << 8) | packet[1]);
         var fragmentIndex = (ushort)((packet[2] << 8) | packet[3]);
         var totalBytes = ((uint)packet[4] << 24) | ((uint)packet[5] << 16) | ((uint)packet[6] << 8) | packet[7];
+        _diagnostics.LastFrameId = frameId;
+        _diagnostics.LastFragmentIndex = fragmentIndex;
+        _diagnostics.LastTotalBytes = totalBytes;
         if (totalBytes == 0 || totalBytes > 8 * 1024 * 1024)
         {
+            _diagnostics.DropBadTotalBytes++;
             return false;
         }
 
         var payload = packet[8..];
         var expectedFragments = (int)Math.Ceiling(totalBytes / (double)VideoConstants.MaxUdpPayloadBytes);
+        _diagnostics.LastExpectedFragments = expectedFragments;
         if (fragmentIndex >= expectedFragments)
         {
+            _diagnostics.DropFragmentOutOfRange++;
             return false;
         }
 
@@ -324,6 +361,7 @@ internal sealed class HevcFrameAssembler
         if (assembly.TotalBytes != (int)totalBytes)
         {
             _assemblies.Remove(frameId);
+            _diagnostics.DropTotalMismatch++;
             return false;
         }
 
@@ -331,6 +369,7 @@ internal sealed class HevcFrameAssembler
         if (offset + payload.Length > assembly.TotalBytes)
         {
             _assemblies.Remove(frameId);
+            _diagnostics.DropOffsetOutOfRange++;
             return false;
         }
 
@@ -341,10 +380,14 @@ internal sealed class HevcFrameAssembler
             assembly.ReceivedCount++;
         }
 
+        _diagnostics.PendingAssemblies = _assemblies.Count;
+
         if (assembly.ReceivedCount == assembly.ExpectedFragments)
         {
             frameBytes = assembly.Buffer;
             _assemblies.Remove(frameId);
+            _diagnostics.CompletedFrames++;
+            _diagnostics.PendingAssemblies = _assemblies.Count;
             return true;
         }
 
@@ -367,6 +410,7 @@ internal sealed class HevcFrameAssembler
         foreach (var key in expired)
         {
             _assemblies.Remove(key);
+            _diagnostics.ExpiredAssemblies++;
         }
     }
 
@@ -395,6 +439,119 @@ internal sealed class HevcFrameAssembler
     }
 }
 
+internal sealed class AssemblerDiagnostics
+{
+    public int LastPacketLength;
+    public ushort LastFrameId;
+    public ushort LastFragmentIndex;
+    public uint LastTotalBytes;
+    public int LastExpectedFragments;
+    public int PendingAssemblies;
+
+    public long DropTooShort;
+    public long DropBadTotalBytes;
+    public long DropFragmentOutOfRange;
+    public long DropTotalMismatch;
+    public long DropOffsetOutOfRange;
+    public long ExpiredAssemblies;
+    public long CompletedFrames;
+}
+
+internal static class FfmpegLoader
+{
+    private const int ExpectedAvcodecMajor = 62;
+    private static readonly object Gate = new();
+    private static bool _initialized;
+
+    private static readonly string[] CandidateDirectories =
+    {
+        "/usr/lib",
+        "/usr/lib/x86_64-linux-gnu",
+        "/usr/lib64",
+        "/usr/local/lib"
+    };
+
+    public static void EnsureInitialized()
+    {
+        if (_initialized)
+        {
+            return;
+        }
+
+        lock (Gate)
+        {
+            if (_initialized)
+            {
+                return;
+            }
+
+            var root = ResolveFfmpegRoot();
+            ffmpeg.RootPath = root;
+            DynamicallyLoadedBindings.Initialize();
+            _initialized = true;
+        }
+    }
+
+    private static string ResolveFfmpegRoot()
+    {
+        var searched = new List<string>();
+
+        var overridePath = Environment.GetEnvironmentVariable("ALLIANCE_FFMPEG_ROOT");
+        if (!string.IsNullOrWhiteSpace(overridePath))
+        {
+            searched.Add(overridePath);
+            if (HasMatchingAvcodec(overridePath))
+            {
+                return overridePath;
+            }
+        }
+
+        foreach (var dir in CandidateDirectories)
+        {
+            searched.Add(dir);
+            if (HasMatchingAvcodec(dir))
+            {
+                return dir;
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"FFmpeg runtime not found. Expected libavcodec.so.{ExpectedAvcodecMajor} " +
+            $"(FFmpeg 8.x, matching FFmpeg.AutoGen 8.1.0). Searched: {string.Join(", ", searched)}. " +
+            $"Found instead: {DescribeFoundVersions()}. " +
+            $"Install FFmpeg 8.x or set ALLIANCE_FFMPEG_ROOT to the directory containing libavcodec.so.{ExpectedAvcodecMajor}.");
+    }
+
+    private static bool HasMatchingAvcodec(string directory)
+    {
+        if (!Directory.Exists(directory))
+        {
+            return false;
+        }
+
+        return File.Exists(Path.Combine(directory, $"libavcodec.so.{ExpectedAvcodecMajor}"));
+    }
+
+    private static string DescribeFoundVersions()
+    {
+        var found = new List<string>();
+        foreach (var dir in CandidateDirectories)
+        {
+            if (!Directory.Exists(dir))
+            {
+                continue;
+            }
+
+            foreach (var path in Directory.EnumerateFiles(dir, "libavcodec.so.*"))
+            {
+                found.Add(Path.GetFileName(path));
+            }
+        }
+
+        return found.Count == 0 ? "none" : string.Join(", ", found);
+    }
+}
+
 internal unsafe sealed class FfmpegHevcDecoder : IDisposable
 {
     private const int InputBufferPaddingSize = 64;
@@ -417,7 +574,7 @@ internal unsafe sealed class FfmpegHevcDecoder : IDisposable
     {
         _width = width;
         _height = height;
-        ffmpeg.RootPath = "/usr/lib";
+        FfmpegLoader.EnsureInitialized();
         var codec = ffmpeg.avcodec_find_decoder(AVCodecID.AV_CODEC_ID_HEVC);
         if (codec is null)
         {
@@ -564,7 +721,7 @@ internal unsafe sealed class FfmpegHevcDecoder : IDisposable
             _width,
             _height,
             AVPixelFormat.AV_PIX_FMT_BGRA,
-            ffmpeg.SWS_BILINEAR,
+            (int)SwsFlags.SWS_BILINEAR,
             null,
             null,
             null);
