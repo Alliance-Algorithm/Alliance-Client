@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
+using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
 using Alliance.Client.Protocol;
 using Alliance.Client.Shared.Utils;
@@ -12,10 +13,12 @@ namespace Alliance.Client.Features.Settings;
 public sealed partial class SettingsDialogViewModel : ObservableObject
 {
     private readonly TelemetryStore _telemetryStore;
+    private readonly VideoStreamStore _videoStreamStore;
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private string _mqttStatusLabel;
     private string _linkStatusLabel;
+    private string _videoStatusLabel;
     private string _lastUpdateText;
     private string? _selectedClientId;
     private bool _isBasicTab = true;
@@ -25,16 +28,19 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
     public SettingsDialogViewModel(
         TelemetryStore telemetryStore,
+        VideoStreamStore videoStreamStore,
         AppSettings settings,
         AppRuntimeCoordinator runtimeCoordinator)
     {
         _telemetryStore = telemetryStore;
+        _videoStreamStore = videoStreamStore;
         _settings = settings;
         _runtimeCoordinator = runtimeCoordinator;
 
         var snapshot = telemetryStore.CurrentSnapshot;
         _mqttStatusLabel = snapshot.MqttState.ToDisplayText();
         _linkStatusLabel = snapshot.LinkState.ToDisplayText();
+        _videoStatusLabel = videoStreamStore.Snapshot.StatusText;
         _lastUpdateText = snapshot.LastUpdateText;
 
         AvailableClientIds = PlayerIdentity.AvailableRobotIds
@@ -57,6 +63,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         RefreshFields();
 
         _telemetryStore.PropertyChanged += HandleTelemetryChanged;
+        _videoStreamStore.PropertyChanged += HandleVideoChanged;
     }
 
     public string MqttStatusLabel
@@ -75,6 +82,12 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     {
         get => _lastUpdateText;
         private set => SetProperty(ref _lastUpdateText, value);
+    }
+
+    public string VideoStatusLabel
+    {
+        get => _videoStatusLabel;
+        private set => SetProperty(ref _videoStatusLabel, value);
     }
 
     public string? SelectedClientId
@@ -140,6 +153,13 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         MqttStatusLabel = snapshot.MqttState.ToDisplayText();
         LinkStatusLabel = snapshot.LinkState.ToDisplayText();
         LastUpdateText = snapshot.LastUpdateText;
+    }
+
+    private void HandleVideoChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(VideoStreamStore.Snapshot)) return;
+
+        VideoStatusLabel = _videoStreamStore.Snapshot.StatusText;
     }
 
     private void RefreshFields()

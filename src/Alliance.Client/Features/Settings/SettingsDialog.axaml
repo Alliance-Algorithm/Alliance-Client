@@ -60,6 +60,14 @@
                              HorizontalAlignment="Right" />
                 </Grid>
                 <Grid ColumnDefinitions="Auto,*">
+                  <TextBlock Text="Video" Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Text="{Binding VideoStatusLabel}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             HorizontalAlignment="Right" />
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*">
                   <TextBlock Text="Last Update" Foreground="{DynamicResource MutedTextBrush}"
                              FontSize="12" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="1" Text="{Binding LastUpdateText}"

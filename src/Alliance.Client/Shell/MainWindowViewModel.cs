@@ -2,6 +2,7 @@ using System.ComponentModel;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
+using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,6 +15,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly TelemetryStore _telemetryStore;
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
+    private readonly VideoStreamStore _videoStreamStore;
     private string _currentRobotLabel;
     private Window? _settingsDialog;
 
@@ -21,11 +23,13 @@ public sealed class MainWindowViewModel : ObservableObject
         HudOverlayViewModel hud,
         TelemetryStore telemetryStore,
         AppSettings settings,
+        VideoStreamStore videoStreamStore,
         AppRuntimeCoordinator runtimeCoordinator)
     {
         Hud = hud;
         _telemetryStore = telemetryStore;
         _settings = settings;
+        _videoStreamStore = videoStreamStore;
         _runtimeCoordinator = runtimeCoordinator;
 
         WindowTitle = settings.ApplicationName;
@@ -64,6 +68,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         var vm = new SettingsDialogViewModel(
             _telemetryStore,
+            _videoStreamStore,
             _settings,
             _runtimeCoordinator);
         var dialog = new SettingsDialog(vm);
