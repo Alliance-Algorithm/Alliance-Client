@@ -9,6 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Alliance.Video.Common\Alliance.Video.Common.csproj" />
+
     <PackageReference Include="Avalonia" Version="11.3.5" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.5" />
@@ -28,6 +30,19 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Target Name="CopyVideoWorkerOutput" AfterTargets="Build">
+    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\Alliance.VideoWorker.csproj&quot; -c $(Configuration) --no-restore"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+
+    <ItemGroup>
+      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\**\*" />
+    </ItemGroup>
+
+    <Copy SourceFiles="@(VideoWorkerArtifacts)"
+          DestinationFiles="@(VideoWorkerArtifacts->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
   <ItemGroup>
     <Protobuf Include="..\..\proto\**\*.proto" GrpcServices="None" />

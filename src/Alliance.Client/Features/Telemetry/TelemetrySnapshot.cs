@@ -96,20 +96,20 @@ public sealed record RobotStatusSnapshot(
 public sealed record CurrentRobotPanelSnapshot(
     string RobotLabel,
     string HealthText,
-    string FireRateText,
-    string AmmoText,
     string BuffText,
     int? CurrentHealth = null,
     int? MaxHealth = null,
-    int? AmmoValue = null)
+    int? Level = null,
+    int? ExperienceForUpgrade = null,
+    int? RemainingAmmo = null,
+    int? CurrentChassisEnergy = null,
+    int? MaxChassisEnergy = null)
 {
     public static CurrentRobotPanelSnapshot Empty(string robotLabel)
     {
         return new CurrentRobotPanelSnapshot(
             robotLabel,
             "HP --/--",
-            "ROF --",
-            "AMMO --",
             "BUFF --");
     }
 
@@ -117,6 +117,25 @@ public sealed record CurrentRobotPanelSnapshot(
         CurrentHealth.HasValue && MaxHealth is > 0
             ? Math.Clamp((double)CurrentHealth.Value / MaxHealth.Value, 0, 1)
             : 0;
+
+    public double ChassisEnergyPercent =>
+        CurrentChassisEnergy.HasValue && MaxChassisEnergy is > 0
+            ? Math.Clamp((double)CurrentChassisEnergy.Value / MaxChassisEnergy.Value, 0, 1)
+            : 0;
+
+    public string LevelText => Level.HasValue ? $"Lv.{Level.Value}" : "Lv.--";
+
+    public string UpgradeNeededText => ExperienceForUpgrade.HasValue
+        ? $"升级还需: {ExperienceForUpgrade.Value}"
+        : "升级还需: --";
+
+    public string AmmoText => RemainingAmmo.HasValue
+        ? $"允许发弹量: {RemainingAmmo.Value}"
+        : "允许发弹量: --";
+
+    public string ChassisEnergyText => CurrentChassisEnergy.HasValue && MaxChassisEnergy.HasValue
+        ? $"剩余能量: {CurrentChassisEnergy.Value}/{MaxChassisEnergy.Value} J"
+        : "剩余能量: -- J";
 
     public string BarColorClass => HealthPercent switch
     {

@@ -454,7 +454,8 @@ public sealed class TelemetryStore : ObservableObject
                 health,
                 500,
                 bullets,
-                showHealthBar));
+                showHealthBar,
+                IsEnemy: !isAllyTeam));
         }
 
         return values;
@@ -506,20 +507,25 @@ public sealed class TelemetryStore : ObservableObject
             : _configuredRobotId;
         var currentHealth = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.CurrentHealth;
         var maxHealth = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.MaxHealth;
-        var fireRate = _robotDynamicStatus is null ? (double?)null : _robotDynamicStatus.LastProjectileFireRate;
-        var ammo = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.RemainingAmmo;
+        var level = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.Level;
+        var expForUpgrade = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.ExperienceForUpgrade;
+        var remainingAmmo = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.RemainingAmmo;
+        var currentChassisEnergy = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.CurrentChassisEnergy;
+        var maxChassisEnergy = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.MaxChassisEnergy;
 
         return new CurrentRobotPanelSnapshot(
             BuildRobotLabel(robotId),
             currentHealth.HasValue || maxHealth.HasValue
                 ? TelemetryText.FormatHealth(currentHealth ?? 0, maxHealth ?? 0)
                 : "HP --/--",
-            fireRate.HasValue ? TelemetryText.FormatFireRate(fireRate.Value) : "ROF --",
-            ammo.HasValue ? TelemetryText.FormatAmmo(ammo.Value) : "AMMO --",
             robotId.HasValue ? BuildRobotBuffSummary(activeBuffs, robotId.Value, maxEntries: int.MaxValue) : "BUFF --",
             currentHealth,
             maxHealth,
-            ammo);
+            level,
+            expForUpgrade,
+            remainingAmmo,
+            currentChassisEnergy,
+            maxChassisEnergy);
     }
 
     private static string BuildRobotLabel(int? robotId)

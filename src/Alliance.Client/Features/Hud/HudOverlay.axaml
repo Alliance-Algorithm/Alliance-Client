@@ -39,6 +39,7 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Alliance.Client.Features.Hud"
+             xmlns:video="using:Alliance.Client.Features.Video"
              x:Class="Alliance.Client.Features.Hud.HudOverlay"
              x:DataType="vm:HudOverlayViewModel"
              IsHitTestVisible="False"
@@ -54,8 +55,13 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
         <!-- 底层：视频画面区域（预留） -->
         <Border Classes="hud-region"
                 Background="#0A101540" CornerRadius="4" Margin="4">
-          <TextBlock Classes="hud-caption" Text="VIDEO FEED"
-                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <Grid>
+            <video:VideoFeedControl Store="{Binding Video}" />
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Spacing="2">
+              <TextBlock Classes="hud-caption" Text="{Binding Video.Snapshot.StatusText}" HorizontalAlignment="Right" />
+              <TextBlock Classes="hud-detail" Text="{Binding Video.Snapshot.MetricsText}" HorizontalAlignment="Right" />
+            </StackPanel>
+          </Grid>
         </Border>
 
         <!-- 顶层：比赛信息面板（叠加在画面上方，占视频区域50%宽度） -->

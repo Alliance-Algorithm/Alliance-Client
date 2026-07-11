@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Alliance.Client.Features.Telemetry;
+using Alliance.Client.Features.Video;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Alliance.Client.Features.Hud;
@@ -7,13 +8,15 @@ namespace Alliance.Client.Features.Hud;
 public sealed class HudOverlayViewModel : ObservableObject
 {
     private readonly TelemetryStore _telemetryStore;
+    private readonly VideoStreamStore _videoStreamStore;
     private TelemetrySnapshot _snapshot;
     private RobotStatusBarViewModel _allyRobotsViewModel;
     private RobotStatusBarViewModel _enemyRobotsViewModel;
 
-    public HudOverlayViewModel(TelemetryStore telemetryStore)
+    public HudOverlayViewModel(TelemetryStore telemetryStore, VideoStreamStore videoStreamStore)
     {
         _telemetryStore = telemetryStore;
+        _videoStreamStore = videoStreamStore;
         _snapshot = telemetryStore.CurrentSnapshot;
         _allyRobotsViewModel = new RobotStatusBarViewModel("ALLIES", _snapshot.AllyRobots, isEnemy: false);
         _enemyRobotsViewModel = new RobotStatusBarViewModel("ENEMIES", _snapshot.EnemyRobots, isEnemy: true);
@@ -37,6 +40,8 @@ public sealed class HudOverlayViewModel : ObservableObject
         get => _enemyRobotsViewModel;
         private set => SetProperty(ref _enemyRobotsViewModel, value);
     }
+
+    public VideoStreamStore Video => _videoStreamStore;
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {
