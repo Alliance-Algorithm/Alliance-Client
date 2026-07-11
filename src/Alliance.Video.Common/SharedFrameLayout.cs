@@ -6,12 +6,22 @@ public sealed class SharedFrameLayout
 {
     public SharedFrameLayout(int width, int height)
     {
+        if (width <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(width), width, "Frame width must be greater than 0.");
+        }
+
+        if (height <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(height), height, "Frame height must be greater than 0.");
+        }
+
         Width = width;
         Height = height;
-        Stride = width * 4;
-        FrameBytes = Stride * height;
-        SlotSize = VideoConstants.FrameHeaderSize + FrameBytes;
-        TotalBytes = VideoConstants.SharedHeaderSize + (SlotSize * VideoConstants.SharedBufferSlots);
+        Stride = checked(width * 4);
+        FrameBytes = checked(Stride * height);
+        SlotSize = checked(VideoConstants.FrameHeaderSize + FrameBytes);
+        TotalBytes = checked(VideoConstants.SharedHeaderSize + (SlotSize * VideoConstants.SharedBufferSlots));
     }
 
     public int Width { get; }

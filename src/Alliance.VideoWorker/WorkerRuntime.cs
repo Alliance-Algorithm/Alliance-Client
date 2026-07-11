@@ -16,6 +16,8 @@ namespace Alliance.VideoWorker;
 
 internal sealed class WorkerRuntime : IDisposable
 {
+    private static readonly TimeSpan PipeConnectTimeout = TimeSpan.FromSeconds(5);
+
     private readonly VideoControlMessage _control;
     private readonly ILogger<WorkerRuntime> _logger;
     private readonly CancellationTokenSource _cts = new();
@@ -60,7 +62,19 @@ internal sealed class WorkerRuntime : IDisposable
             PipeDirection.Out,
             PipeOptions.Asynchronous);
 
-        await pipe.ConnectAsync(_cts.Token);
+        using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token))
+        {
+            connectCts.CancelAfter(PipeConnectTimeout);
+            try
+            {
+                await pipe.ConnectAsync(connectCts.Token);
+            }
+            catch (OperationCanceledException) when (!_cts.IsCancellationRequested)
+            {
+                throw new TimeoutException($"Video worker failed to connect to status pipe '{_control.StatusPipeName}' within {PipeConnectTimeout.TotalSeconds:F0} seconds.");
+            }
+        }
+
         using var writer = new StreamWriter(pipe, new UTF8Encoding(false)) { AutoFlush = true };
 
         var heartbeatTask = Task.Run(() => HeartbeatLoopAsync(writer, _cts.Token), _cts.Token);
@@ -696,7 +710,7 @@ internal unsafe sealed class FfmpegHevcDecoder : IDisposable
                 _dstData,
                 _dstLineSize);
 
-            outputFrames.Add(new DecodedFrame(_bgraBuffer, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
+            outputFrames.Add(new DecodedFrame(_bgraBuffer.ToArray(), DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()));
         }
     }
 

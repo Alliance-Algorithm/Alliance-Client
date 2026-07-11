@@ -35,6 +35,12 @@ public sealed class VideoFeedControl : global::Avalonia.Controls.Control
         Subscribe(null);
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        Subscribe(Store);
+    }
+
     private void Subscribe(VideoStreamStore? store)
     {
         if (ReferenceEquals(_subscribedStore, store))

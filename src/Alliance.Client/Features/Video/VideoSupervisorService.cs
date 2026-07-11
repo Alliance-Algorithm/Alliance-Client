@@ -67,30 +67,34 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         {
             var sharedMemoryPath = Path.Combine(Path.GetTempPath(), $"alliance-video-{Guid.NewGuid():N}.mmap");
             var pipeName = $"alliance-video-{Guid.NewGuid():N}";
-            Directory.CreateDirectory(Path.GetDirectoryName(sharedMemoryPath)!);
-            using var backingStream = new FileStream(sharedMemoryPath, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
-            backingStream.SetLength(new SharedFrameLayout(_settings.Video.FrameWidth, _settings.Video.FrameHeight).TotalBytes);
-
-            var workerMessage = new VideoControlMessage
-            {
-                SharedMemoryPath = sharedMemoryPath,
-                StatusPipeName = pipeName,
-                UdpPort = _settings.Video.UdpPort,
-                FrameWidth = _settings.Video.FrameWidth,
-                FrameHeight = _settings.Video.FrameHeight,
-                ExpectedFps = _settings.Video.ExpectedFps,
-                PresentFps = _settings.Video.PresentFps,
-                FrameAssemblyTimeoutMs = _settings.Video.FrameAssemblyTimeoutMs,
-                HeartbeatIntervalMs = _settings.Video.HeartbeatIntervalMs,
-                SignalLostAfterMs = _settings.Video.SignalLostAfterMs,
-                ClearFrameAfterMs = _settings.Video.ClearFrameAfterMs
-            };
-
-            using var pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
-            var (process, drainStdout, drainStderr) = StartWorker(workerMessage, cancellationToken);
+            Process? process = null;
+            Task drainStdout = Task.CompletedTask;
+            Task drainStderr = Task.CompletedTask;
 
             try
             {
+                Directory.CreateDirectory(Path.GetDirectoryName(sharedMemoryPath)!);
+                using var backingStream = new FileStream(sharedMemoryPath, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
+                backingStream.SetLength(new SharedFrameLayout(_settings.Video.FrameWidth, _settings.Video.FrameHeight).TotalBytes);
+
+                var workerMessage = new VideoControlMessage
+                {
+                    SharedMemoryPath = sharedMemoryPath,
+                    StatusPipeName = pipeName,
+                    UdpPort = _settings.Video.UdpPort,
+                    FrameWidth = _settings.Video.FrameWidth,
+                    FrameHeight = _settings.Video.FrameHeight,
+                    ExpectedFps = _settings.Video.ExpectedFps,
+                    PresentFps = _settings.Video.PresentFps,
+                    FrameAssemblyTimeoutMs = _settings.Video.FrameAssemblyTimeoutMs,
+                    HeartbeatIntervalMs = _settings.Video.HeartbeatIntervalMs,
+                    SignalLostAfterMs = _settings.Video.SignalLostAfterMs,
+                    ClearFrameAfterMs = _settings.Video.ClearFrameAfterMs
+                };
+
+                using var pipeServer = new NamedPipeServerStream(pipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                (process, drainStdout, drainStderr) = StartWorker(workerMessage, cancellationToken);
+
                 using (var connectCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
                     connectCts.CancelAfter(TimeSpan.FromSeconds(5));
@@ -134,6 +138,10 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                     }
                     catch (OperationCanceledException) { }
                     catch (IOException) { }
+                    catch (JsonException ex)
+                    {
+                        _logger.LogWarning(ex, "Invalid video worker heartbeat payload received; supervisor will wait for restart conditions.");
+                    }
                 }, heartbeatCts.Token);
 
                 try
@@ -213,7 +221,7 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                 {
                     _logger.LogDebug(ex, "Draining worker output streams failed during cleanup.");
                 }
-                process.Dispose();
+                process?.Dispose();
                 TryDelete(sharedMemoryPath);
             }
 
@@ -325,11 +333,11 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         catch (IOException) { }
     }
 
-    private static void TryTerminate(Process process)
+    private static void TryTerminate(Process? process)
     {
         try
         {
-            if (!process.HasExited)
+            if (process is not null && !process.HasExited)
             {
                 process.Kill(entireProcessTree: true);
             }
