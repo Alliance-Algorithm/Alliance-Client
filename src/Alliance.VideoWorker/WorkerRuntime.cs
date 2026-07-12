@@ -499,28 +499,17 @@ internal static class FfmpegLoader
                 return;
             }
 
-            var root = ResolveFfmpegRoot();
+            var root = ResolveFfmpegRoot(AppContext.BaseDirectory);
             ffmpeg.RootPath = root;
             DynamicallyLoadedBindings.Initialize();
             _initialized = true;
         }
     }
 
-    private static string ResolveFfmpegRoot()
+    internal static string ResolveFfmpegRoot(string? baseDirectory)
     {
         var searched = new List<string>();
-
-        var overridePath = Environment.GetEnvironmentVariable("ALLIANCE_FFMPEG_ROOT");
-        if (!string.IsNullOrWhiteSpace(overridePath))
-        {
-            searched.Add(overridePath);
-            if (HasMatchingAvcodec(overridePath))
-            {
-                return overridePath;
-            }
-        }
-
-        foreach (var dir in CandidateDirectories)
+        foreach (var dir in EnumerateCandidateDirectories(baseDirectory))
         {
             searched.Add(dir);
             if (HasMatchingAvcodec(dir))
@@ -532,8 +521,36 @@ internal static class FfmpegLoader
         throw new InvalidOperationException(
             $"FFmpeg runtime not found. Expected libavcodec.so.{ExpectedAvcodecMajor} " +
             $"(FFmpeg 8.x, matching FFmpeg.AutoGen 8.1.0). Searched: {string.Join(", ", searched)}. " +
-            $"Found instead: {DescribeFoundVersions()}. " +
-            $"Install FFmpeg 8.x or set ALLIANCE_FFMPEG_ROOT to the directory containing libavcodec.so.{ExpectedAvcodecMajor}.");
+            $"Found instead: {DescribeFoundVersions(searched)}. " +
+            $"Bundle FFmpeg under ./ffmpeg, or set ALLIANCE_FFMPEG_ROOT to the directory containing libavcodec.so.{ExpectedAvcodecMajor}.");
+    }
+
+    private static IEnumerable<string> EnumerateCandidateDirectories(string? baseDirectory)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        if (!string.IsNullOrWhiteSpace(baseDirectory))
+        {
+            var bundledDirectory = Path.Combine(baseDirectory, "ffmpeg");
+            if (seen.Add(bundledDirectory))
+            {
+                yield return bundledDirectory;
+            }
+        }
+
+        var overridePath = Environment.GetEnvironmentVariable("ALLIANCE_FFMPEG_ROOT");
+        if (!string.IsNullOrWhiteSpace(overridePath) && seen.Add(overridePath))
+        {
+            yield return overridePath;
+        }
+
+        foreach (var dir in CandidateDirectories)
+        {
+            if (seen.Add(dir))
+            {
+                yield return dir;
+            }
+        }
     }
 
     private static bool HasMatchingAvcodec(string directory)
@@ -546,10 +563,10 @@ internal static class FfmpegLoader
         return File.Exists(Path.Combine(directory, $"libavcodec.so.{ExpectedAvcodecMajor}"));
     }
 
-    private static string DescribeFoundVersions()
+    private static string DescribeFoundVersions(IEnumerable<string> directories)
     {
-        var found = new List<string>();
-        foreach (var dir in CandidateDirectories)
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var dir in directories)
         {
             if (!Directory.Exists(dir))
             {
@@ -562,7 +579,7 @@ internal static class FfmpegLoader
             }
         }
 
-        return found.Count == 0 ? "none" : string.Join(", ", found);
+        return found.Count == 0 ? "none" : string.Join(", ", found.OrderBy(name => name, StringComparer.Ordinal));
     }
 }
 

@@ -3,6 +3,7 @@ bin/
 obj/
 artifacts/
 publish/
+packaging/vendor
 
 # Docs
 .docs/

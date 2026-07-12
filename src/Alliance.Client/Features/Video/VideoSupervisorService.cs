@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -232,14 +233,14 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
 
     private (Process Process, Task DrainStdout, Task DrainStderr) StartWorker(VideoControlMessage workerMessage, CancellationToken cancellationToken)
     {
-        var workerDllPath = ResolveWorkerDllPath();
         var payloadJson = JsonSerializer.Serialize(workerMessage, WorkerProtocol.JsonOptions);
         var payload = Convert.ToBase64String(Encoding.UTF8.GetBytes(payloadJson));
+        var launchInfo = ResolveWorkerLaunchInfo(AppContext.BaseDirectory, payload);
         var startInfo = new ProcessStartInfo
         {
-            FileName = "dotnet",
-            Arguments = $"\"{workerDllPath}\" {payload}",
-            WorkingDirectory = AppContext.BaseDirectory,
+            FileName = launchInfo.FileName,
+            Arguments = launchInfo.Arguments,
+            WorkingDirectory = launchInfo.WorkingDirectory,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -252,21 +253,133 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         return (process, drainStdout, drainStderr);
     }
 
-    private static string ResolveWorkerDllPath()
+    internal static WorkerLaunchInfo ResolveWorkerLaunchInfo(string baseDirectory, string payload)
     {
-        var outputPath = Path.Combine(AppContext.BaseDirectory, "Alliance.VideoWorker.dll");
-        if (File.Exists(outputPath))
+        foreach (var candidate in EnumerateWorkerCandidates(baseDirectory))
         {
-            return outputPath;
+            if (File.Exists(candidate.ExecutablePath))
+            {
+                return new WorkerLaunchInfo(candidate.ExecutablePath, payload, baseDirectory);
+            }
+
+            if (File.Exists(candidate.DllPath))
+            {
+                return new WorkerLaunchInfo("dotnet", $"\"{candidate.DllPath}\" {payload}", baseDirectory);
+            }
         }
 
-        var repoPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../src/Alliance.VideoWorker/bin/Debug/net10.0/Alliance.VideoWorker.dll"));
-        if (File.Exists(repoPath))
+        throw new FileNotFoundException(
+            "Alliance.VideoWorker was not found in the packaged worker directory, the application output, or repo build paths.",
+            Path.Combine(baseDirectory, GetWorkerDllName()));
+    }
+
+    private static IEnumerable<WorkerCandidate> EnumerateWorkerCandidates(string baseDirectory)
+    {
+        yield return new WorkerCandidate(
+            Path.Combine(baseDirectory, "worker", GetWorkerExecutableName()),
+            Path.Combine(baseDirectory, "worker", GetWorkerDllName()));
+
+        yield return new WorkerCandidate(
+            Path.Combine(baseDirectory, GetWorkerExecutableName()),
+            Path.Combine(baseDirectory, GetWorkerDllName()));
+
+        var repoBinRoot = TryResolveRepoBinRoot(baseDirectory);
+        if (repoBinRoot is null)
         {
-            return repoPath;
+            yield break;
         }
 
-        throw new FileNotFoundException("Alliance.VideoWorker.dll was not found in the application output or repo build path.", outputPath);
+        foreach (var workerDirectory in EnumerateRepoWorkerDirectories(repoBinRoot))
+        {
+            yield return new WorkerCandidate(
+                Path.Combine(workerDirectory, GetWorkerExecutableName()),
+                Path.Combine(workerDirectory, GetWorkerDllName()));
+        }
+    }
+
+    private static string? TryResolveRepoBinRoot(string baseDirectory)
+    {
+        for (var current = new DirectoryInfo(baseDirectory); current is not null; current = current.Parent)
+        {
+            if (!File.Exists(Path.Combine(current.FullName, "Alliance.sln")))
+            {
+                continue;
+            }
+
+            var repoBinRoot = Path.Combine(current.FullName, "src", "Alliance.VideoWorker", "bin");
+            return Directory.Exists(repoBinRoot) ? repoBinRoot : null;
+        }
+
+        return null;
+    }
+
+    private static IEnumerable<string> EnumerateRepoWorkerDirectories(string repoBinRoot)
+    {
+        var currentRid = GetCurrentRid();
+        foreach (var configuration in new[] { "Debug", "Release" })
+        {
+            var tfmDirectory = Path.Combine(repoBinRoot, configuration, "net10.0");
+            if (!Directory.Exists(tfmDirectory))
+            {
+                continue;
+            }
+
+            if (currentRid is not null)
+            {
+                var ridDirectory = Path.Combine(tfmDirectory, currentRid);
+                if (Directory.Exists(ridDirectory))
+                {
+                    yield return ridDirectory;
+                }
+            }
+
+            yield return tfmDirectory;
+        }
+    }
+
+    private static string? GetCurrentRid()
+    {
+        if (OperatingSystem.IsLinux())
+        {
+            return RuntimeInformation.ProcessArchitecture switch
+            {
+                Architecture.X64 => "linux-x64",
+                Architecture.Arm64 => "linux-arm64",
+                _ => null
+            };
+        }
+
+        if (OperatingSystem.IsWindows())
+        {
+            return RuntimeInformation.ProcessArchitecture switch
+            {
+                Architecture.X64 => "win-x64",
+                Architecture.Arm64 => "win-arm64",
+                _ => null
+            };
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            return RuntimeInformation.ProcessArchitecture switch
+            {
+                Architecture.X64 => "osx-x64",
+                Architecture.Arm64 => "osx-arm64",
+                _ => null
+            };
+        }
+
+        return null;
+    }
+
+    private static string GetWorkerExecutableName()
+    {
+        return OperatingSystem.IsWindows() ? "Alliance.VideoWorker.exe" : "Alliance.VideoWorker";
+    }
+
+    private static string GetWorkerDllName()
+    {
+        return "Alliance.VideoWorker.dll";
     }
 
     private async Task ApplyWorkerStatusAsync(VideoStatusMessage message, long frameVersion)
@@ -357,4 +470,8 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
         {
         }
     }
+
+    internal sealed record WorkerLaunchInfo(string FileName, string Arguments, string WorkingDirectory);
+
+    private sealed record WorkerCandidate(string ExecutablePath, string DllPath);
 }
