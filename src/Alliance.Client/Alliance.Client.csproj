@@ -6,6 +6,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <VideoWorkerProject>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\Alliance.VideoWorker.csproj'))</VideoWorkerProject>
+    <VideoWorkerProjectDir>$([System.IO.Path]::GetDirectoryName('$(VideoWorkerProject)'))</VideoWorkerProjectDir>
+    <VideoWorkerTargetFramework>net10.0</VideoWorkerTargetFramework>
+    <VideoWorkerBuildOutputDir>$([System.IO.Path]::Combine('$(VideoWorkerProjectDir)', 'bin', '$(Configuration)', '$(VideoWorkerTargetFramework)'))</VideoWorkerBuildOutputDir>
+    <VideoWorkerRidBuildOutputDir Condition="'$(RuntimeIdentifier)' != ''">$([System.IO.Path]::Combine('$(VideoWorkerBuildOutputDir)', '$(RuntimeIdentifier)'))</VideoWorkerRidBuildOutputDir>
+    <VideoWorkerPublishDir>$([System.IO.Path]::Combine('$(PublishDir)', 'worker'))</VideoWorkerPublishDir>
+    <VideoWorkerSelfContained>false</VideoWorkerSelfContained>
+    <VideoWorkerSelfContained Condition="'$(SelfContained)' != ''">$(SelfContained)</VideoWorkerSelfContained>
+    <VideoWorkerBuildCommand>dotnet build &quot;$(VideoWorkerProject)&quot; -c $(Configuration)</VideoWorkerBuildCommand>
+    <VideoWorkerBuildCommand Condition="'$(RuntimeIdentifier)' != ''">dotnet build &quot;$(VideoWorkerProject)&quot; -c $(Configuration) -r $(RuntimeIdentifier)</VideoWorkerBuildCommand>
+    <VideoWorkerPublishCommand>dotnet publish &quot;$(VideoWorkerProject)&quot; -c $(Configuration) --self-contained $(VideoWorkerSelfContained) -o &quot;$(VideoWorkerPublishDir)&quot;</VideoWorkerPublishCommand>
+    <VideoWorkerPublishCommand Condition="'$(RuntimeIdentifier)' != ''">dotnet publish &quot;$(VideoWorkerProject)&quot; -c $(Configuration) -r $(RuntimeIdentifier) --self-contained $(VideoWorkerSelfContained) -o &quot;$(VideoWorkerPublishDir)&quot;</VideoWorkerPublishCommand>
   </PropertyGroup>
 
   <ItemGroup>
@@ -32,16 +44,25 @@
   </ItemGroup>
 
   <Target Name="CopyVideoWorkerOutput" AfterTargets="Build">
-    <Exec Command="dotnet build &quot;$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\Alliance.VideoWorker.csproj&quot; -c $(Configuration) --no-restore"
+    <Exec Command="$(VideoWorkerBuildCommand)"
           WorkingDirectory="$(MSBuildProjectDirectory)" />
 
-    <ItemGroup>
-      <VideoWorkerArtifacts Include="$(MSBuildThisFileDirectory)..\Alliance.VideoWorker\bin\$(Configuration)\net10.0\**\*" />
+    <ItemGroup Condition="'$(RuntimeIdentifier)' != ''">
+      <VideoWorkerArtifacts Include="$(VideoWorkerRidBuildOutputDir)/**/*" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(RuntimeIdentifier)' == ''">
+      <VideoWorkerArtifacts Include="$(VideoWorkerBuildOutputDir)/**/*" />
     </ItemGroup>
 
     <Copy SourceFiles="@(VideoWorkerArtifacts)"
           DestinationFiles="@(VideoWorkerArtifacts->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
           SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="PublishVideoWorkerOutput" AfterTargets="Publish">
+    <Exec Command="$(VideoWorkerPublishCommand)"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
   </Target>
 
   <ItemGroup>

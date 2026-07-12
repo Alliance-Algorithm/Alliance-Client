@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Alliance Client
+Comment=Realtime robot battle desktop client
+Exec=AppRun
+Icon=alliance-client
+Terminal=false
+Categories=Game;Utility;

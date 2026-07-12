@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+APPDIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+APP_ROOT="$APPDIR/usr/lib/alliance-client"
+FFMPEG_ROOT="$APP_ROOT/worker/ffmpeg"
+
+export ALLIANCE_FFMPEG_ROOT="$FFMPEG_ROOT"
+export LD_LIBRARY_PATH="$APP_ROOT:$APP_ROOT/worker:$FFMPEG_ROOT${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+exec "$APP_ROOT/Alliance.Client" "$@"

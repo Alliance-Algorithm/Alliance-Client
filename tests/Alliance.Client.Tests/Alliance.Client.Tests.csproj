@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Alliance.Client\Alliance.Client.csproj" />
+    <ProjectReference Include="..\..\src\Alliance.VideoWorker\Alliance.VideoWorker.csproj" />
   </ItemGroup>
 
   <ItemGroup>
