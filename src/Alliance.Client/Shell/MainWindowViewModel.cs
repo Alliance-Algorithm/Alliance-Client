@@ -16,6 +16,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private readonly VideoStreamStore _videoStreamStore;
+    private readonly HudLayoutSettings _hudLayoutSettings;
     private string _currentRobotLabel;
     private Window? _settingsDialog;
 
@@ -24,13 +25,15 @@ public sealed class MainWindowViewModel : ObservableObject
         TelemetryStore telemetryStore,
         AppSettings settings,
         VideoStreamStore videoStreamStore,
-        AppRuntimeCoordinator runtimeCoordinator)
+        AppRuntimeCoordinator runtimeCoordinator,
+        HudLayoutSettings hudLayoutSettings)
     {
         Hud = hud;
         _telemetryStore = telemetryStore;
         _settings = settings;
         _videoStreamStore = videoStreamStore;
         _runtimeCoordinator = runtimeCoordinator;
+        _hudLayoutSettings = hudLayoutSettings;
 
         WindowTitle = settings.ApplicationName;
 
@@ -70,7 +73,8 @@ public sealed class MainWindowViewModel : ObservableObject
             _telemetryStore,
             _videoStreamStore,
             _settings,
-            _runtimeCoordinator);
+            _runtimeCoordinator,
+            _hudLayoutSettings);
         var dialog = new SettingsDialog(vm);
         dialog.Closed += (_, _) => _settingsDialog = null;
         _settingsDialog = dialog;

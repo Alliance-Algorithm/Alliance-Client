@@ -30,6 +30,11 @@
             <TextBlock Text="Message" FontSize="13" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
           </Border>
+          <Border x:Name="DisplayNav" Classes="settings-nav-item"
+                  PointerPressed="OnDisplayNavPressed" Cursor="Hand">
+            <TextBlock Text="Display" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+          </Border>
         </StackPanel>
       </Border>
 
@@ -135,6 +140,47 @@
             </ItemsControl>
           </ScrollViewer>
         </Grid>
+
+        <!-- Display 页面 -->
+        <StackPanel IsVisible="{Binding IsDisplayTab}" Spacing="16" Margin="20,16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="ROBOT STATUS BAR" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <StackPanel Spacing="12">
+
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Text Size" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <TextBlock Grid.Column="1" Text="{Binding RobotTextScaleText}"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold" />
+                  <Button Grid.Column="2" Content="−" Classes="settings-step-btn"
+                          Command="{Binding DecreaseRobotTextCommand}" />
+                  <Button Grid.Column="3" Content="+" Classes="settings-step-btn"
+                          Command="{Binding IncreaseRobotTextCommand}" />
+                </Grid>
+
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Panel Width" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <TextBlock Grid.Column="1" Text="{Binding RobotWidthScaleText}"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold" />
+                  <Button Grid.Column="2" Content="−" Classes="settings-step-btn"
+                          Command="{Binding DecreaseRobotWidthCommand}" />
+                  <Button Grid.Column="3" Content="+" Classes="settings-step-btn"
+                          Command="{Binding IncreaseRobotWidthCommand}" />
+                </Grid>
+
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
 
       </Grid>
     </Grid>
