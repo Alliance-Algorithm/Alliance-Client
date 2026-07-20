@@ -54,7 +54,7 @@ RobotStatusBar - 机器人状态列表控件
                                             VerticalAlignment="Center"
                                             IsVisible="{Binding ShowHealthBar}">
                                         <Border Classes="hud-bar-fill"
-                                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
                                                 HorizontalAlignment="Left"
                                                 Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
                                     </Border>
