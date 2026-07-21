@@ -1,0 +1,61 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Alliance.Client.Features.RmcsImage"
+        x:Class="Alliance.Client.Features.RmcsImage.ImageWindow"
+        x:DataType="vm:ImageWindowViewModel"
+        Width="960" Height="540"
+        MinWidth="480" MinHeight="270"
+        Title="RMCS Images"
+        Background="#0A0E14"
+        mc:Ignorable="d">
+  <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,*,Auto">
+    <Border Grid.Column="0" Grid.Row="0"
+            Background="#0D1117" BorderBrush="#2D4657" BorderThickness="0,0,0,1"
+            Padding="12,8">
+      <TextBlock Text="Background"
+                 Foreground="{DynamicResource TextBrush}"
+                 FontSize="13" FontWeight="SemiBold" />
+    </Border>
+
+    <Border Grid.Column="1" Grid.Row="0"
+            Background="#0D1117" BorderBrush="#2D4657" BorderThickness="0,0,0,1"
+            Padding="12,8">
+      <TextBlock Text="Trajectory"
+                 Foreground="{DynamicResource TextBrush}"
+                 FontSize="13" FontWeight="SemiBold" />
+    </Border>
+
+    <Border Grid.Column="0" Grid.Row="1"
+            Background="#0D1117" Margin="0,0,1,0">
+      <Image Source="{Binding ImageStore.BackgroundImage}"
+             Stretch="Uniform" />
+    </Border>
+
+    <Border Grid.Column="1" Grid.Row="1" Background="#0D1117">
+      <Image Source="{Binding ImageStore.TrajectoryImage}"
+             Stretch="Uniform" />
+    </Border>
+
+    <Border Grid.Column="0" Grid.Row="2"
+            Background="#0D1117" Margin="0,0,1,0"
+            BorderBrush="#2D4657" BorderThickness="0,1,0,0"
+            Padding="8,4">
+      <TextBlock Text="{Binding ImageStore.BackgroundStatsText}"
+                 Foreground="{DynamicResource TextBrush}"
+                 FontFamily="{DynamicResource AppMono}"
+                 FontSize="11" />
+    </Border>
+
+    <Border Grid.Column="1" Grid.Row="2"
+            Background="#0D1117"
+            BorderBrush="#2D4657" BorderThickness="0,1,0,0"
+            Padding="8,4">
+      <TextBlock Text="{Binding ImageStore.TrajectoryStatsText}"
+                 Foreground="{DynamicResource TextBrush}"
+                 FontFamily="{DynamicResource AppMono}"
+                 FontSize="11" />
+    </Border>
+  </Grid>
+</Window>

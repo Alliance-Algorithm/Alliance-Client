@@ -24,7 +24,8 @@ public sealed class MessageViewerWindowViewModel : ObservableObject
             nameof(RobotStaticStatus),
             nameof(RobotDynamicStatus),
             nameof(Buff),
-            nameof(RadarInfoToClient)
+            nameof(RadarInfoToClient),
+            nameof(CustomByteBlock)
         };
         _selectedTopic = Topics[0];
         _telemetryStore.PropertyChanged += OnTelemetryChanged;
@@ -78,6 +79,7 @@ public sealed class MessageViewerWindowViewModel : ObservableObject
             nameof(RobotDynamicStatus) => BuildRobotDynamicStatusFields(),
             nameof(Buff) => BuildBuffFields(),
             nameof(RadarInfoToClient) => BuildRadarFields(),
+            nameof(CustomByteBlock) => BuildCustomByteBlockFields(),
             _ => []
         };
     }
@@ -231,6 +233,15 @@ public sealed class MessageViewerWindowViewModel : ObservableObject
             fields.Add(F($"[{i}] is_high_light", r.IsHighLight));
         }
         return fields.Count == 0 ? NoDataFields() : fields;
+    }
+
+    private IReadOnlyList<string> BuildCustomByteBlockFields()
+    {
+        var data = _telemetryStore.CustomByteBlockData;
+        if (data is null) return NoDataFields();
+        var hex = Convert.ToHexString(data);
+        if (hex.Length > 200) hex = hex[..200] + "...";
+        return [$"length: {data.Length} bytes", $"data (hex): {hex}"];
     }
 
     private static IReadOnlyList<string> NoDataFields()

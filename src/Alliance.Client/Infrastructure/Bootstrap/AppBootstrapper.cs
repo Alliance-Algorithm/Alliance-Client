@@ -1,5 +1,6 @@
 using Alliance.Client.Features.Control;
 using Alliance.Client.Features.Hud;
+using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
@@ -42,10 +43,14 @@ public static class AppBootstrapper
         services.AddSingleton<StartupLogger>();
         services.AddSingleton<AppRuntimeCoordinator>();
 
+        services.AddSingleton<RmcsImageStore>();
+        services.AddSingleton<RmcsImageProcessor>();
+
         services.AddSingleton<HudOverlayViewModel>();
         services.AddSingleton<MainWindowViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddSingleton<MessageViewerWindowViewModel>();
+        services.AddSingleton<ImageWindowViewModel>();
 
         return services.BuildServiceProvider();
     }
