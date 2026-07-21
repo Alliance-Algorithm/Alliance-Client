@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Alliance.Client.Features.RmcsImage;
 
 public sealed class FrameAssembler : IDisposable
@@ -10,10 +12,12 @@ public sealed class FrameAssembler : IDisposable
     private readonly object _gate = new();
     private readonly Dictionary<byte, FrameBuffer> _frames = new();
     private readonly byte _messageType;
+    private readonly ILogger<FrameAssembler> _logger;
 
-    public FrameAssembler(byte messageType)
+    public FrameAssembler(byte messageType, ILogger<FrameAssembler> logger)
     {
         _messageType = messageType;
+        _logger = logger;
     }
 
     public event Action<byte[], RmcsImageFrameStats?>? FrameCompleted;
@@ -41,6 +45,7 @@ public sealed class FrameAssembler : IDisposable
             if (isStart && _frames.TryGetValue(imageSeq, out var oldBuffer) && !oldBuffer.IsProcessed
                 && (DateTime.UtcNow - oldBuffer.CreatedAt).TotalSeconds > 30)
             {
+                _logger.LogWarning("Rmcs stale frame replaced: type=0x{Type:X2} imageSeq={Seq}", _messageType, imageSeq);
                 oldBuffer.Timer?.Stop();
                 oldBuffer.Timer?.Dispose();
                 _frames.Remove(imageSeq);
@@ -57,24 +62,15 @@ public sealed class FrameAssembler : IDisposable
             buffer.Statuses[packetSeq] = status;
             buffer.LastSequence = Math.Max(buffer.LastSequence, packetSeq);
 
-            if (isEnd)
-            {
-                buffer.Timer?.Stop();
-                buffer.Timer?.Dispose();
-                buffer.Timer = null;
-                buffer.IsProcessed = true;
-                _frames.Remove(imageSeq);
-                completedBuffer = buffer;
-            }
-            else
-            {
-                buffer.Timer?.Stop();
-                buffer.Timer?.Dispose();
-                buffer.Timer = new System.Timers.Timer(TimeoutMs) { AutoReset = false };
-                var capturedSeq = imageSeq;
-                buffer.Timer.Elapsed += (_, _) => OnTimeout(capturedSeq);
-                buffer.Timer.Start();
-            }
+            _logger.LogDebug("Rmcs pkt: type=0x{Type:X2} imageSeq={ImgSeq} pktSeq={PktSeq} start={Start} end={End}",
+                _messageType, imageSeq, packetSeq, isStart, isEnd);
+
+            buffer.Timer?.Stop();
+            buffer.Timer?.Dispose();
+            buffer.Timer = new System.Timers.Timer(TimeoutMs) { AutoReset = false };
+            var capturedSeq = imageSeq;
+            buffer.Timer.Elapsed += (_, _) => OnTimeout(capturedSeq);
+            buffer.Timer.Start();
         }
 
         if (completedBuffer != null)
@@ -92,6 +88,8 @@ public sealed class FrameAssembler : IDisposable
             _frames.Remove(imageSeq);
         }
 
+        _logger.LogWarning("Rmcs frame timeout: type=0x{Type:X2} imageSeq={Seq} recv={Count}",
+            _messageType, imageSeq, buffer.Payloads.Count);
         AssembleAndPublish(imageSeq, buffer);
     }
 
@@ -99,10 +97,21 @@ public sealed class FrameAssembler : IDisposable
     {
         var (jpegBytes, stats) = TryAssemble(buffer);
         if (jpegBytes != null)
+        {
+            _logger.LogInformation("Rmcs frame assembled: type=0x{Type:X2} imageSeq={Seq} packets={Recv}/{Total} loss={Loss:P1}",
+                _messageType, imageSeq,
+                stats?.ReceivedPackets ?? 0, stats?.TotalPackets?.ToString() ?? "?",
+                stats?.LossRate ?? 0);
             FrameCompleted?.Invoke(jpegBytes, stats);
+        }
+        else
+        {
+            _logger.LogWarning("Rmcs frame assembly failed: type=0x{Type:X2} imageSeq={Seq} recv={Count}",
+                _messageType, imageSeq, buffer.Payloads.Count);
+        }
     }
 
-    private static (byte[]? jpeg, RmcsImageFrameStats? stats) TryAssemble(FrameBuffer buffer)
+    private (byte[]? jpeg, RmcsImageFrameStats? stats) TryAssemble(FrameBuffer buffer)
     {
         var payloads = buffer.Payloads;
         var statuses = buffer.Statuses;

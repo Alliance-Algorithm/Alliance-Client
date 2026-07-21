@@ -297,12 +297,13 @@ public sealed class TelemetryStore : ObservableObject
 
     public void ApplyCustomByteBlock(CustomByteBlock status)
     {
+        var data = status.Data.ToByteArray();
+        _rmcsImageProcessor.Feed(data);
+
         lock (_gate)
         {
-            var data = status.Data.ToByteArray();
             _customByteBlockData = data;
-            _rmcsImageProcessor.Feed(data);
-            MarkTelemetryReceivedLocked();
+            _lastTelemetryAt = DateTimeOffset.UtcNow;
         }
     }
 

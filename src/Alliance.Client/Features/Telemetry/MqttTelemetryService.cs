@@ -329,12 +329,27 @@ public sealed class MqttTelemetryService : ITelemetryService
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload)));
                 case nameof(CustomByteBlock):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyCustomByteBlock(CustomByteBlock.Parser.ParseFrom(payload)));
+                {
+                    var raw = payload;
+                    _ = Task.Run(() =>
+                    {
+                        try
+                        {
+                            _telemetryStore.ApplyCustomByteBlock(CustomByteBlock.Parser.ParseFrom(raw));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "CustomByteBlock processing failed");
+                        }
+                    });
+                    break;
+                }
                 default:
                     _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
-                    return Task.CompletedTask;
+                    break;
             }
+
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {

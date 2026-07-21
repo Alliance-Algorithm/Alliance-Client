@@ -42,7 +42,8 @@ public sealed class AppRuntimeCoordinator
         try
         {
             await _telemetryService.StartAsync();
-            await _videoSupervisorService.StartAsync();
+            // TODO: re-enable when video is stable
+            // await _videoSupervisorService.StartAsync();
         }
         catch (Exception ex)
         {

@@ -8,6 +8,7 @@ using Alliance.Client.Infrastructure.Runtime;
 using Avalonia.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Alliance.Client.Shell;
 
@@ -18,6 +19,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private readonly VideoStreamStore _videoStreamStore;
     private readonly ImageWindowViewModel _imageWindowViewModel;
+    private readonly ILogger<MainWindowViewModel> _logger;
     private string _currentRobotLabel;
     private Window? _settingsDialog;
     private Window? _imageWindow;
@@ -28,7 +30,8 @@ public sealed class MainWindowViewModel : ObservableObject
         AppSettings settings,
         VideoStreamStore videoStreamStore,
         AppRuntimeCoordinator runtimeCoordinator,
-        ImageWindowViewModel imageWindowViewModel)
+        ImageWindowViewModel imageWindowViewModel,
+        ILogger<MainWindowViewModel> logger)
     {
         Hud = hud;
         _telemetryStore = telemetryStore;
@@ -36,6 +39,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _videoStreamStore = videoStreamStore;
         _runtimeCoordinator = runtimeCoordinator;
         _imageWindowViewModel = imageWindowViewModel;
+        _logger = logger;
 
         WindowTitle = settings.ApplicationName;
 
@@ -90,6 +94,7 @@ public sealed class MainWindowViewModel : ObservableObject
             return;
         }
 
+        _logger.LogInformation("Image window opened");
         var dialog = new ImageWindow(_imageWindowViewModel);
         dialog.Closed += (_, _) => _imageWindow = null;
         _imageWindow = dialog;
