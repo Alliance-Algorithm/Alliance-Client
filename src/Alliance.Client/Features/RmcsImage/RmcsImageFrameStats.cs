@@ -7,6 +7,15 @@ public sealed class RmcsImageFrameStats
     public int ReceivedDataPackets { get; init; }
     public int? TotalDataPackets { get; init; }
     public IReadOnlyList<int> MissingSequences { get; init; } = [];
+    public DateTime FirstPacketAt { get; init; }
+    public DateTime LastPacketAt { get; init; }
+    public DateTime CompletedAt { get; set; }
+
+    public TimeSpan? ReceptionDuration =>
+        LastPacketAt != default && FirstPacketAt != default ? LastPacketAt - FirstPacketAt : null;
+
+    public TimeSpan? AssemblyDuration =>
+        CompletedAt != default && LastPacketAt != default ? CompletedAt - LastPacketAt : null;
 
     public double? LossRate
     {
@@ -15,6 +24,36 @@ public sealed class RmcsImageFrameStats
             if (TotalPackets is not { } total || total == 0)
                 return null;
             return 1.0 - (double)ReceivedPackets / total;
+        }
+    }
+
+    public string LossRateText
+    {
+        get
+        {
+            if (LossRate is { } lr)
+                return $"{lr * 100:F1}%";
+            return "-";
+        }
+    }
+
+    public string RecvText
+    {
+        get
+        {
+            if (ReceptionDuration is { } d)
+                return $"{d.TotalMilliseconds:F0}ms";
+            return "-";
+        }
+    }
+
+    public string AsmText
+    {
+        get
+        {
+            if (AssemblyDuration is { } d)
+                return $"{d.TotalMilliseconds:F0}ms";
+            return "-";
         }
     }
 

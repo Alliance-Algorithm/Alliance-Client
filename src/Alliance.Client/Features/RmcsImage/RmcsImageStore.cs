@@ -5,32 +5,18 @@ namespace Alliance.Client.Features.RmcsImage;
 
 public sealed class RmcsImageStore : ObservableObject
 {
-    private Bitmap? _backgroundImage;
-    private Bitmap? _trajectoryImage;
-    private string _backgroundStatsText = "";
-    private string _trajectoryStatsText = "";
+    private WriteableBitmap? _composedImage;
+    private readonly RmcsPipelineProgress _pipelineProgress = new();
 
-    public Bitmap? BackgroundImage
+    public RmcsImageStore()
     {
-        get => _backgroundImage;
-        set => SetProperty(ref _backgroundImage, value);
     }
 
-    public Bitmap? TrajectoryImage
+    public WriteableBitmap? ComposedImage
     {
-        get => _trajectoryImage;
-        set => SetProperty(ref _trajectoryImage, value);
+        get => _composedImage;
+        set => SetProperty(ref _composedImage, value);
     }
 
-    public string BackgroundStatsText
-    {
-        get => _backgroundStatsText;
-        set => SetProperty(ref _backgroundStatsText, value);
-    }
-
-    public string TrajectoryStatsText
-    {
-        get => _trajectoryStatsText;
-        set => SetProperty(ref _trajectoryStatsText, value);
-    }
+    public RmcsPipelineProgress PipelineProgress => _pipelineProgress;
 }

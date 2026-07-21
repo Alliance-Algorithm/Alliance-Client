@@ -20,7 +20,7 @@ public sealed class FrameAssembler : IDisposable
         _logger = logger;
     }
 
-    public event Action<byte[], RmcsImageFrameStats?>? FrameCompleted;
+    public event Action<byte, byte[], RmcsImageFrameStats?>? FrameCompleted;
 
     public void Feed(byte[] packet)
     {
@@ -61,6 +61,7 @@ public sealed class FrameAssembler : IDisposable
             buffer.Payloads[packetSeq] = payload;
             buffer.Statuses[packetSeq] = status;
             buffer.LastSequence = Math.Max(buffer.LastSequence, packetSeq);
+            buffer.LastPacketAt = DateTime.UtcNow;
 
             _logger.LogDebug("Rmcs pkt: type=0x{Type:X2} imageSeq={ImgSeq} pktSeq={PktSeq} start={Start} end={End}",
                 _messageType, imageSeq, packetSeq, isStart, isEnd);
@@ -95,14 +96,18 @@ public sealed class FrameAssembler : IDisposable
 
     private void AssembleAndPublish(byte imageSeq, FrameBuffer buffer)
     {
+        var completedAt = DateTime.UtcNow;
         var (jpegBytes, stats) = TryAssemble(buffer);
         if (jpegBytes != null)
         {
+            if (stats != null)
+                stats.CompletedAt = completedAt;
+
             _logger.LogInformation("Rmcs frame assembled: type=0x{Type:X2} imageSeq={Seq} packets={Recv}/{Total} loss={Loss:P1}",
                 _messageType, imageSeq,
                 stats?.ReceivedPackets ?? 0, stats?.TotalPackets?.ToString() ?? "?",
                 stats?.LossRate ?? 0);
-            FrameCompleted?.Invoke(jpegBytes, stats);
+            FrameCompleted?.Invoke(imageSeq, jpegBytes, stats);
         }
         else
         {
@@ -265,7 +270,9 @@ public sealed class FrameAssembler : IDisposable
             TotalPackets = hasFec ? N : null,
             ReceivedDataPackets = recvDataCount,
             TotalDataPackets = hasFec ? D : null,
-            MissingSequences = missingList
+            MissingSequences = missingList,
+            FirstPacketAt = buffer.CreatedAt,
+            LastPacketAt = buffer.LastPacketAt
         };
 
         return (result, stats);
@@ -301,6 +308,7 @@ public sealed class FrameAssembler : IDisposable
         public readonly Dictionary<int, byte[]> Payloads = new();
         public readonly Dictionary<int, byte> Statuses = new();
         public readonly DateTime CreatedAt = DateTime.UtcNow;
+        public DateTime LastPacketAt;
         public int LastSequence = -1;
         public System.Timers.Timer? Timer;
         public volatile bool IsProcessed;
