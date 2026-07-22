@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
@@ -16,6 +17,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private readonly VideoStreamStore _videoStreamStore;
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
+    private readonly HudLayoutSettings _hudLayoutSettings;
     private string _mqttStatusLabel;
     private string _linkStatusLabel;
     private string _videoStatusLabel;
@@ -23,6 +25,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private string? _selectedClientId;
     private bool _isBasicTab = true;
     private bool _isMessageTab;
+    private bool _isDisplayTab;
     private string? _selectedTopic;
     private IReadOnlyList<string> _fields = [];
 
@@ -30,12 +33,14 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         TelemetryStore telemetryStore,
         VideoStreamStore videoStreamStore,
         AppSettings settings,
-        AppRuntimeCoordinator runtimeCoordinator)
+        AppRuntimeCoordinator runtimeCoordinator,
+        HudLayoutSettings hudLayoutSettings)
     {
         _telemetryStore = telemetryStore;
         _videoStreamStore = videoStreamStore;
         _settings = settings;
         _runtimeCoordinator = runtimeCoordinator;
+        _hudLayoutSettings = hudLayoutSettings;
 
         var snapshot = telemetryStore.CurrentSnapshot;
         _mqttStatusLabel = snapshot.MqttState.ToDisplayText();
@@ -65,6 +70,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
         _telemetryStore.PropertyChanged += HandleTelemetryChanged;
         _videoStreamStore.PropertyChanged += HandleVideoChanged;
+        _hudLayoutSettings.PropertyChanged += (_, _) => RaiseDisplayStateChanged();
     }
 
     public string MqttStatusLabel
@@ -105,7 +111,10 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _isBasicTab, value) && value)
+            {
                 IsMessageTab = false;
+                IsDisplayTab = false;
+            }
         }
     }
 
@@ -115,7 +124,23 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _isMessageTab, value) && value)
+            {
                 IsBasicTab = false;
+                IsDisplayTab = false;
+            }
+        }
+    }
+
+    public bool IsDisplayTab
+    {
+        get => _isDisplayTab;
+        set
+        {
+            if (SetProperty(ref _isDisplayTab, value) && value)
+            {
+                IsBasicTab = false;
+                IsMessageTab = false;
+            }
         }
     }
 
@@ -137,6 +162,10 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         private set => SetProperty(ref _fields, value);
     }
 
+    public string RobotTextScaleText => $"{_hudLayoutSettings.RobotTextScale:P0}";
+
+    public string RobotWidthScaleText => $"{_hudLayoutSettings.RobotWidthScale:P0}";
+
     [RelayCommand]
     private async Task ApplyClientIdAsync()
     {
@@ -144,6 +173,42 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
         _settings.Mqtt.ClientId = SelectedClientId;
         await _runtimeCoordinator.RestartTelemetryAsync();
+    }
+
+    [RelayCommand]
+    private void IncreaseRobotText()
+    {
+        if (_hudLayoutSettings.IncreaseRobotText())
+        {
+            RaiseDisplayStateChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void DecreaseRobotText()
+    {
+        if (_hudLayoutSettings.DecreaseRobotText())
+        {
+            RaiseDisplayStateChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void IncreaseRobotWidth()
+    {
+        if (_hudLayoutSettings.IncreaseRobotWidth())
+        {
+            RaiseDisplayStateChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void DecreaseRobotWidth()
+    {
+        if (_hudLayoutSettings.DecreaseRobotWidth())
+        {
+            RaiseDisplayStateChanged();
+        }
     }
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
@@ -161,6 +226,12 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         if (args.PropertyName != nameof(VideoStreamStore.Snapshot)) return;
 
         VideoStatusLabel = _videoStreamStore.Snapshot.StatusText;
+    }
+
+    private void RaiseDisplayStateChanged()
+    {
+        OnPropertyChanged(nameof(RobotTextScaleText));
+        OnPropertyChanged(nameof(RobotWidthScaleText));
     }
 
     private void RefreshFields()

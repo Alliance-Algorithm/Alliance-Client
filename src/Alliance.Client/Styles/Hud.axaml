@@ -267,6 +267,25 @@
     <Setter Property="MinWidth" Value="80" />
   </Style>
 
+  <Style Selector="Button.settings-step-btn">
+    <Setter Property="Background" Value="#16222B" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="BorderBrush" Value="#2D4657" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Width" Value="40" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="MinWidth" Value="40" />
+    <Setter Property="Padding" Value="0" />
+  </Style>
+
+  <Style Selector="Button.settings-step-btn:pointerover">
+    <Setter Property="Background" Value="#1A2A33" />
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+  </Style>
+
   <!-- 机器人单元格 -->
   <Style Selector="Border.hud-robot-cell">
     <Setter Property="Background" Value="#0D111799" />

@@ -21,7 +21,7 @@ TeamPanel - 比赛信息面板控件
                 <Grid Grid.Column="0" IsVisible="{Binding !IsEnemy}">
                     <Border Classes="hud-bar-bg-outpost">
                         <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
                                 HorizontalAlignment="Right"
                                 Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
                     </Border>
@@ -32,7 +32,7 @@ TeamPanel - 比赛信息面板控件
                 <Grid Grid.Column="1" IsVisible="{Binding !IsEnemy}">
                     <Border Classes="hud-bar-bg-base">
                         <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
                                 HorizontalAlignment="Right"
                                 Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
                     </Border>
@@ -45,7 +45,7 @@ TeamPanel - 比赛信息面板控件
                 <Grid Grid.Column="0" IsVisible="{Binding IsEnemy}">
                     <Border Classes="hud-bar-bg-base">
                         <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
                                 HorizontalAlignment="Left"
                                 Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
                     </Border>
@@ -56,7 +56,7 @@ TeamPanel - 比赛信息面板控件
                 <Grid Grid.Column="1" IsVisible="{Binding IsEnemy}">
                     <Border Classes="hud-bar-bg-outpost">
                         <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsEnemy, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
                                 HorizontalAlignment="Left"
                                 Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
                     </Border>

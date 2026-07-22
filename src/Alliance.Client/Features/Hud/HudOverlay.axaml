@@ -44,7 +44,9 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
              x:DataType="vm:HudOverlayViewModel"
              IsHitTestVisible="False"
              mc:Ignorable="d">
-  <Grid RowDefinitions="6*,2*" ColumnDefinitions="6*,2*"
+  <Grid x:Name="RootLayout"
+        RowDefinitions="6*,2*"
+        ColumnDefinitions="6*,2*"
         RowSpacing="4" ColumnSpacing="4" Margin="24">
 
     <!-- ===== 左上 6x6 区域：视频画面 + 叠加比赛信息 ===== -->

@@ -10,12 +10,14 @@ public partial class SettingsDialog : Window
 {
     private readonly Border _basicNav;
     private readonly Border _messageNav;
+    private readonly Border _displayNav;
 
     public SettingsDialog()
     {
         InitializeComponent();
         _basicNav = this.FindControl<Border>("BasicNav")!;
         _messageNav = this.FindControl<Border>("MessageNav")!;
+        _displayNav = this.FindControl<Border>("DisplayNav")!;
         UpdateNavStyles();
     }
 
@@ -49,27 +51,28 @@ public partial class SettingsDialog : Window
         }
     }
 
+    private void OnDisplayNavPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is SettingsDialogViewModel vm)
+        {
+            vm.IsDisplayTab = true;
+            e.Handled = true;
+        }
+    }
+
     private void UpdateNavStyles()
     {
         if (DataContext is not SettingsDialogViewModel vm) return;
 
-        if (vm.IsBasicTab)
-        {
-            _basicNav.Background = new SolidColorBrush(Color.Parse("#1A2A3360"));
-            _basicNav.BorderBrush = new SolidColorBrush(Color.Parse("#57D7C7"));
-            _basicNav.BorderThickness = new Thickness(3, 0, 0, 0);
-            _messageNav.Background = null;
-            _messageNav.BorderBrush = null;
-            _messageNav.BorderThickness = new Thickness(0);
-        }
-        else
-        {
-            _messageNav.Background = new SolidColorBrush(Color.Parse("#1A2A3360"));
-            _messageNav.BorderBrush = new SolidColorBrush(Color.Parse("#57D7C7"));
-            _messageNav.BorderThickness = new Thickness(3, 0, 0, 0);
-            _basicNav.Background = null;
-            _basicNav.BorderBrush = null;
-            _basicNav.BorderThickness = new Thickness(0);
-        }
+        ApplyNav(_basicNav, vm.IsBasicTab);
+        ApplyNav(_messageNav, vm.IsMessageTab);
+        ApplyNav(_displayNav, vm.IsDisplayTab);
+    }
+
+    private static void ApplyNav(Border nav, bool active)
+    {
+        nav.Background = active ? new SolidColorBrush(Color.Parse("#1A2A3360")) : null;
+        nav.BorderBrush = active ? new SolidColorBrush(Color.Parse("#57D7C7")) : null;
+        nav.BorderThickness = active ? new Thickness(3, 0, 0, 0) : new Thickness(0);
     }
 }

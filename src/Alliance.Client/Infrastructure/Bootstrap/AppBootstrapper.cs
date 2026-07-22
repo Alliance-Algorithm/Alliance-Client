@@ -38,6 +38,7 @@ public static class AppBootstrapper
         services.AddSingleton<TelemetryStore>();
         services.AddSingleton<ITelemetryService, MqttTelemetryService>();
         services.AddSingleton<VideoStreamStore>();
+        services.AddSingleton<HudLayoutSettings>();
         services.AddSingleton<IVideoSupervisorService, VideoSupervisorService>();
         services.AddSingleton<ICommandService, NoOpCommandService>();
         services.AddSingleton<StartupLogger>();

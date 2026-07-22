@@ -61,8 +61,12 @@ public sealed class TelemetryMappingTests
         Assert.Equal("Outpost 800", snapshot.AllyTeam.OutpostHealthText);
         Assert.Equal("DMG 345", snapshot.AllyTeam.DamageText);
         Assert.Equal("Base 1300", snapshot.EnemyTeam.BaseHealthText);
+        Assert.False(snapshot.AllyTeam.IsBlue);
+        Assert.True(snapshot.EnemyTeam.IsBlue);
         Assert.Equal("100", snapshot.AllyRobots[0].HealthText);
+        Assert.False(snapshot.AllyRobots[0].IsBlue);
         Assert.Equal("707", snapshot.EnemyRobots[4].HealthText);
+        Assert.True(snapshot.EnemyRobots[0].IsBlue);
         Assert.Equal("Robot 1", snapshot.CurrentRobot.RobotLabel);
         Assert.Equal("HP 250/300", snapshot.CurrentRobot.HealthText);
         Assert.Equal("允许发弹量: 120", snapshot.CurrentRobot.AmmoText);
@@ -196,6 +200,49 @@ public sealed class TelemetryMappingTests
         Assert.Equal(206, snapshot.RadarRobots[6].PositionYcm);
         Assert.True(snapshot.RadarRobots[1].IsHighlighted);
         Assert.True(snapshot.RadarRobots[2].IsOfflineHighlighted);
+    }
+
+    [Fact]
+    public void TelemetryStore_RuntimeRobotId_Overrides_ClientSide_For_Team_Color_And_Radar()
+    {
+        var store = new TelemetryStore(CreateSettings("101"), null!);
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+
+        store.ApplyGlobalUnitStatus(new GlobalUnitStatus
+        {
+            BaseHealth = 1600,
+            EnemyBaseHealth = 1400,
+            RobotHealth = { 110, 210, 310, 410, 710, 120, 220, 320, 420, 720 }
+        });
+
+        var radar = new RadarInfoToClient();
+        for (var index = 0; index < 12; index++)
+        {
+            radar.RadarSingleRobotInfo.Add(new RadarSingleRobotInfo
+            {
+                TargetPosX = (uint)(100 + index),
+                TargetPosY = (uint)(200 + index),
+                IsHighLight = 0
+            });
+        }
+
+        store.ApplyRobotStaticStatus(new RobotStaticStatus
+        {
+            RobotId = 1,
+            MaxHealth = 300
+        });
+        store.ApplyRadarInfoToClient(radar);
+
+        var snapshot = store.CurrentSnapshot;
+
+        Assert.False(snapshot.AllyTeam.IsBlue);
+        Assert.True(snapshot.EnemyTeam.IsBlue);
+        Assert.False(snapshot.AllyRobots[0].IsBlue);
+        Assert.True(snapshot.EnemyRobots[0].IsBlue);
+        Assert.Equal(101, snapshot.RadarRobots[0].RobotId);
+        Assert.Equal(1, snapshot.RadarRobots[6].RobotId);
+        Assert.Equal("110", snapshot.AllyRobots[0].HealthText);
+        Assert.Equal("120", snapshot.EnemyRobots[0].HealthText);
     }
 
     [Fact]

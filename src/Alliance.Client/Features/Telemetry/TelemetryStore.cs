@@ -19,7 +19,7 @@ public sealed class TelemetryStore : ObservableObject
 
     private readonly object _gate = new();
     private readonly int? _configuredRobotId;
-    private readonly bool _isConfiguredBlue;
+    private bool _isOwnTeamBlue;
     private readonly RmcsImageProcessor _rmcsImageProcessor;
 
     private TelemetrySnapshot _currentSnapshot;
@@ -47,7 +47,7 @@ public sealed class TelemetryStore : ObservableObject
         else
         {
             _configuredRobotId = robotId;
-            _isConfiguredBlue = robotId >= 100;
+            _isOwnTeamBlue = robotId >= 100;
         }
 
         _rmcsImageProcessor = rmcsImageProcessor;
@@ -236,6 +236,12 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             _robotStaticStatus = status.Clone();
+
+            if (status.RobotId > 0)
+            {
+                _isOwnTeamBlue = status.RobotId >= 100;
+            }
+
             MarkTelemetryReceivedLocked();
         }
     }
@@ -383,13 +389,15 @@ public sealed class TelemetryStore : ObservableObject
                 "ALLY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.BaseHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.OutpostHealth,
-                _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageAlly),
+                _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageAlly,
+                isBlue: _isOwnTeamBlue),
             EnemyTeam = BuildTeamPanel(
                 "ENEMY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyBaseHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyOutpostHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy,
-                isEnemy: true),
+                isEnemy: true,
+                isBlue: !_isOwnTeamBlue),
             AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs),
             EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs),
             CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
@@ -404,7 +412,13 @@ public sealed class TelemetryStore : ObservableObject
         };
     }
 
-    private TeamPanelSnapshot BuildTeamPanel(string sideLabel, int? baseHealth, int? outpostHealth, int? damage, bool isEnemy = false)
+    private TeamPanelSnapshot BuildTeamPanel(
+        string sideLabel,
+        int? baseHealth,
+        int? outpostHealth,
+        int? damage,
+        bool isEnemy = false,
+        bool isBlue = true)
     {
         var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
         var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
@@ -422,7 +436,8 @@ public sealed class TelemetryStore : ObservableObject
             damage,
             remainingEconomy,
             totalEconomy,
-            isEnemy);
+            isEnemy,
+            isBlue);
     }
 
     private static string FormatEconomy(int? remaining, long? total)
@@ -477,7 +492,8 @@ public sealed class TelemetryStore : ObservableObject
                 500,
                 bullets,
                 showHealthBar,
-                IsEnemy: !isAllyTeam));
+                IsEnemy: !isAllyTeam,
+                IsBlue: isAllyTeam ? _isOwnTeamBlue : !_isOwnTeamBlue));
         }
 
         return values;
@@ -681,8 +697,8 @@ public sealed class TelemetryStore : ObservableObject
             return [];
         }
 
-        var enemyIds = _isConfiguredBlue ? RedRobotIds : BlueRobotIds;
-        var allyIds = _isConfiguredBlue ? BlueRobotIds : RedRobotIds;
+        var enemyIds = _isOwnTeamBlue ? RedRobotIds : BlueRobotIds;
+        var allyIds = _isOwnTeamBlue ? BlueRobotIds : RedRobotIds;
         var results = new List<RadarRobotTelemetrySnapshot>(_radarSlots.Count);
 
         foreach (var slot in _radarSlots)
@@ -718,8 +734,8 @@ public sealed class TelemetryStore : ObservableObject
     private IReadOnlyDictionary<int, int> ResolveTeamRobotIds(bool isAllyTeam)
     {
         var teamIds = isAllyTeam
-            ? (_isConfiguredBlue ? BlueRobotIds : RedRobotIds)
-            : (_isConfiguredBlue ? RedRobotIds : BlueRobotIds);
+            ? (_isOwnTeamBlue ? BlueRobotIds : RedRobotIds)
+            : (_isOwnTeamBlue ? RedRobotIds : BlueRobotIds);
 
         return new Dictionary<int, int>
         {

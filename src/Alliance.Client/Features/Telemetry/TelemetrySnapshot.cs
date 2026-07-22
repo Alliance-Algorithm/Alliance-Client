@@ -15,7 +15,8 @@ public sealed record TeamPanelSnapshot(
     int? TotalDamage = null,
     int? RemainingEconomy = null,
     long? TotalEconomy = null,
-    bool IsEnemy = false)
+    bool IsEnemy = false,
+    bool IsBlue = true)
 {
     public static TeamPanelSnapshot CreateEmpty(string sideLabel)
     {
@@ -71,7 +72,7 @@ public sealed record TeamPanelSnapshot(
         ? OutpostHealthValue.Value.ToString()
         : "--";
 
-    public string TeamColorClass => IsEnemy ? "enemy" : "ally";
+    public string TeamColorClass => IsBlue ? "blue" : "red";
 }
 
 public sealed record RobotStatusSnapshot(
@@ -83,7 +84,8 @@ public sealed record RobotStatusSnapshot(
     int? MaxHealthValue = null,
     int? AmmoValue = null,
     bool ShowHealthBar = true,
-    bool IsEnemy = false)
+    bool IsEnemy = false,
+    bool IsBlue = true)
 {
     public double HealthPercent =>
         HealthValue.HasValue && MaxHealthValue is > 0
