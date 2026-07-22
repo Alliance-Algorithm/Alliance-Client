@@ -7,7 +7,7 @@ public sealed class FrameAssembler : IDisposable
     private const int K = 10;
     private const int R = 3;
     private const int PayloadSize = 296;
-    private const double TimeoutMs = 500;
+    private const double TimeoutMs = 250;
 
     private readonly object _gate = new();
     private readonly Dictionary<byte, FrameBuffer> _frames = new();
@@ -39,6 +39,7 @@ public sealed class FrameAssembler : IDisposable
         bool isEnd = (status & 0x0F) == 0x02;
 
         FrameBuffer? completedBuffer = null;
+        FrameBuffer? readyBuffer = null;
 
         lock (_gate)
         {
@@ -68,14 +69,27 @@ public sealed class FrameAssembler : IDisposable
 
             buffer.Timer?.Stop();
             buffer.Timer?.Dispose();
-            buffer.Timer = new System.Timers.Timer(TimeoutMs) { AutoReset = false };
-            var capturedSeq = imageSeq;
-            buffer.Timer.Elapsed += (_, _) => OnTimeout(capturedSeq);
-            buffer.Timer.Start();
+            buffer.Timer = null;
+
+            if (CanAssemble(buffer))
+            {
+                buffer.IsProcessed = true;
+                _frames.Remove(imageSeq);
+                readyBuffer = buffer;
+            }
+            else
+            {
+                buffer.Timer = new System.Timers.Timer(TimeoutMs) { AutoReset = false };
+                var capturedSeq = imageSeq;
+                buffer.Timer.Elapsed += (_, _) => OnTimeout(capturedSeq);
+                buffer.Timer.Start();
+            }
         }
 
         if (completedBuffer != null)
             AssembleAndPublish(imageSeq, completedBuffer);
+        if (readyBuffer != null)
+            AssembleAndPublish(imageSeq, readyBuffer);
     }
 
     private void OnTimeout(byte imageSeq)
@@ -116,20 +130,88 @@ public sealed class FrameAssembler : IDisposable
         }
     }
 
-    private (byte[]? jpeg, RmcsImageFrameStats? stats) TryAssemble(FrameBuffer buffer)
+    private static bool CanAssemble(FrameBuffer buffer)
     {
+        // Protocol: only the final FEC packet (status low nibble 0x02) marks frame end.
+        // Intermediate FEC (0x03) must not trigger early completion.
+        var hasEnd = false;
+        foreach (var (_, status) in buffer.Statuses)
+        {
+            if ((status & 0x0F) == 0x02)
+            {
+                hasEnd = true;
+                break;
+            }
+        }
+
+        if (!hasEnd)
+            return false;
+
+        if (!TryResolveFrameLayout(buffer, out var kPrime, out var hasFec, out _, out var G, out var D))
+            return false;
+
+        if (!hasFec || G <= 0 || D <= 0)
+            return false;
+
+        var payloads = buffer.Payloads;
+        for (var g = 0; g < G; g++)
+        {
+            var kg = g == G - 1 ? kPrime : K;
+            var groupStart = g * (K + R);
+            var dataStart = groupStart;
+            var dataEnd = groupStart + kg;
+            var fecEnd = groupStart + kg + R;
+
+            var missingData = 0;
+            for (var seq = dataStart; seq < dataEnd; seq++)
+            {
+                if (!payloads.ContainsKey(seq))
+                    missingData++;
+            }
+
+            if (missingData == 0)
+                continue;
+
+            if (missingData > R)
+                return false;
+
+            var available = 0;
+            for (var seq = dataStart; seq < fecEnd; seq++)
+            {
+                if (payloads.ContainsKey(seq))
+                    available++;
+            }
+
+            if (available < kg)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool TryResolveFrameLayout(
+        FrameBuffer buffer,
+        out int kPrime,
+        out bool hasFec,
+        out int N,
+        out int G,
+        out int D)
+    {
+        kPrime = 10;
+        hasFec = false;
+        N = 0;
+        G = 0;
+        D = 0;
+
         var payloads = buffer.Payloads;
         var statuses = buffer.Statuses;
+        if (payloads.Count == 0)
+            return false;
 
-        if (payloads.Count == 0) return (null, null);
-
-        int kPrime = 10;
-        bool hasFec = false;
-
-        foreach (var (seq, status) in statuses)
+        foreach (var (_, status) in statuses)
         {
-            byte lowNibble = (byte)(status & 0x0F);
-            if (lowNibble == 0x02 || lowNibble == 0x03)
+            var lowNibble = (byte)(status & 0x0F);
+            if (lowNibble is 0x02 or 0x03)
             {
                 kPrime = status >> 4;
                 hasFec = true;
@@ -137,29 +219,30 @@ public sealed class FrameAssembler : IDisposable
             }
         }
 
-        int N, G, D;
         if (hasFec)
         {
-            int lastSeq = buffer.LastSequence;
+            var lastSeq = buffer.LastSequence;
             G = (lastSeq + 1 + K - kPrime + (K + R) - 1) / (K + R);
             N = G * (K + R) - K + kPrime;
             D = N - G * R;
         }
         else
         {
-            D = 0;
-            foreach (var (seq, status) in statuses)
+            foreach (var (_, status) in statuses)
             {
-                byte lowNibble = (byte)(status & 0x0F);
-                if (lowNibble == 0x01 || lowNibble == 0x00)
+                var lowNibble = (byte)(status & 0x0F);
+                if (lowNibble is 0x01 or 0x00)
                     D++;
             }
 
-            if (D == 0) return (null, null);
+            if (D == 0)
+                return false;
 
             kPrime = D % K;
-            if (kPrime == 0 && D > 0) kPrime = K;
-            int fullGroups = D / K;
+            if (kPrime == 0 && D > 0)
+                kPrime = K;
+
+            var fullGroups = D / K;
             if (kPrime == K && fullGroups > 0)
                 G = fullGroups;
             else if (D % K > 0)
@@ -167,26 +250,37 @@ public sealed class FrameAssembler : IDisposable
             else
                 G = 0;
 
-            if (G <= 0) return (null, null);
+            if (G <= 0)
+                return false;
+
             N = D;
         }
 
-        if (G <= 0 || D <= 0) return (null, null);
+        return G > 0 && D > 0;
+    }
+
+    private (byte[]? jpeg, RmcsImageFrameStats? stats) TryAssemble(FrameBuffer buffer)
+    {
+        var payloads = buffer.Payloads;
+        var statuses = buffer.Statuses;
+
+        if (!TryResolveFrameLayout(buffer, out var kPrime, out var hasFec, out var N, out var G, out var D))
+            return (null, null);
 
         var jpegBuf = new byte[D * PayloadSize];
-        int jpegPos = 0;
+        var jpegPos = 0;
 
-        for (int g = 0; g < G; g++)
+        for (var g = 0; g < G; g++)
         {
-            int kg = (g == G - 1) ? kPrime : K;
-            int groupStart = g * (K + R);
+            var kg = g == G - 1 ? kPrime : K;
+            var groupStart = g * (K + R);
 
-            int dataStart = groupStart;
-            int dataEnd = groupStart + kg;
-            int fecEnd = groupStart + kg + R;
+            var dataStart = groupStart;
+            var dataEnd = groupStart + kg;
+            var fecEnd = groupStart + kg + R;
 
             var missingData = new List<int>();
-            for (int seq = dataStart; seq < dataEnd; seq++)
+            for (var seq = dataStart; seq < dataEnd; seq++)
             {
                 if (!payloads.ContainsKey(seq))
                     missingData.Add(seq);
@@ -194,7 +288,7 @@ public sealed class FrameAssembler : IDisposable
 
             if (missingData.Count == 0)
             {
-                for (int seq = dataStart; seq < dataEnd; seq++)
+                for (var seq = dataStart; seq < dataEnd; seq++)
                 {
                     Buffer.BlockCopy(payloads[seq], 0, jpegBuf, jpegPos, PayloadSize);
                     jpegPos += PayloadSize;
@@ -203,7 +297,7 @@ public sealed class FrameAssembler : IDisposable
             else if (missingData.Count <= R)
             {
                 var available = new List<int>();
-                for (int seq = dataStart; seq < fecEnd; seq++)
+                for (var seq = dataStart; seq < fecEnd; seq++)
                 {
                     if (payloads.ContainsKey(seq))
                         available.Add(seq);
@@ -214,9 +308,9 @@ public sealed class FrameAssembler : IDisposable
 
                 var survivingIndices = new int[kg];
                 var survivingPayloads = new byte[kg][];
-                for (int i = 0; i < kg; i++)
+                for (var i = 0; i < kg; i++)
                 {
-                    int seq = available[i];
+                    var seq = available[i];
                     survivingIndices[i] = seq - groupStart;
                     survivingPayloads[i] = payloads[seq];
                 }
@@ -231,7 +325,7 @@ public sealed class FrameAssembler : IDisposable
                     return (null, null);
                 }
 
-                for (int d = 0; d < kg; d++)
+                for (var d = 0; d < kg; d++)
                 {
                     Buffer.BlockCopy(recovered[d], 0, jpegBuf, jpegPos, PayloadSize);
                     jpegPos += PayloadSize;
@@ -243,14 +337,14 @@ public sealed class FrameAssembler : IDisposable
             }
         }
 
-        int eoiPos = FindEoi(jpegBuf, jpegPos);
+        var eoiPos = FindEoi(jpegBuf, jpegPos);
         if (eoiPos <= 0) return (null, null);
 
         var result = new byte[eoiPos];
         Buffer.BlockCopy(jpegBuf, 0, result, 0, eoiPos);
 
         var missingList = new List<int>();
-        for (int seq = 0; seq < N; seq++)
+        for (var seq = 0; seq < N; seq++)
         {
             if (!payloads.ContainsKey(seq))
                 missingList.Add(seq);
@@ -259,8 +353,8 @@ public sealed class FrameAssembler : IDisposable
         var recvDataCount = 0;
         foreach (var (_, status) in statuses)
         {
-            byte lowNibble = (byte)(status & 0x0F);
-            if (lowNibble == 0x01 || lowNibble == 0x00)
+            var lowNibble = (byte)(status & 0x0F);
+            if (lowNibble is 0x01 or 0x00)
                 recvDataCount++;
         }
 

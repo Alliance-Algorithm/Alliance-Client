@@ -29,6 +29,10 @@ public sealed class TelemetryMappingTests
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyGameStatus(new GameStatus
         {
+            CurrentRound = 1,
+            TotalRounds = 3,
+            BlueScore = 2,
+            RedScore = 1,
             StageCountdownSec = 89
         });
         store.ApplyGlobalUnitStatus(new GlobalUnitStatus
@@ -39,7 +43,8 @@ public sealed class TelemetryMappingTests
             EnemyOutpostHealth = 620,
             TotalDamageAlly = 345,
             TotalDamageEnemy = 678,
-            RobotHealth = { 100, 200, 300, 400, 700, 101, 202, 303, 404, 707 }
+            RobotHealth = { 100, 0, 300, 400, 700, 101, 202, 303, 404, 707 },
+            RobotBullets = { 12, 23, 34, 45, 67, 88 }
         });
         store.ApplyRobotStaticStatus(new RobotStaticStatus
         {
@@ -57,15 +62,29 @@ public sealed class TelemetryMappingTests
 
         Assert.Equal(ConnectionState.Ready, snapshot.LinkState);
         Assert.Equal("01:29", snapshot.MatchTimeText);
+        Assert.Equal("Round 1/3", snapshot.RoundText);
+        Assert.Equal("2", snapshot.BlueScoreText);
+        Assert.Equal("1", snapshot.RedScoreText);
         Assert.Equal("Base 1500", snapshot.AllyTeam.BaseHealthText);
         Assert.Equal("Outpost 800", snapshot.AllyTeam.OutpostHealthText);
+        Assert.Equal("1500/5000", snapshot.AllyTeam.BaseHealthDisplay);
+        Assert.Equal("800/1500", snapshot.AllyTeam.OutpostHealthDisplay);
         Assert.Equal("DMG 345", snapshot.AllyTeam.DamageText);
         Assert.Equal("Base 1300", snapshot.EnemyTeam.BaseHealthText);
         Assert.False(snapshot.AllyTeam.IsBlue);
         Assert.True(snapshot.EnemyTeam.IsBlue);
         Assert.Equal("100", snapshot.AllyRobots[0].HealthText);
+        Assert.Equal("英雄", snapshot.AllyRobots[0].RobotTypeText);
+        Assert.Equal("弹 12", snapshot.AllyRobots[0].AmmoDisplayText);
         Assert.False(snapshot.AllyRobots[0].IsBlue);
+        Assert.False(snapshot.AllyRobots[1].IsAlive);
+        Assert.False(snapshot.AllyRobots[5].ShowHealthBar);
+        Assert.True(snapshot.AllyRobots[5].IsAerial);
+        Assert.Equal("无人机", snapshot.AllyRobots[5].RobotTypeText);
+        Assert.Equal("弹 88", snapshot.AllyRobots[5].AmmoDisplayText);
+        Assert.Equal("空中单位", snapshot.AllyRobots[5].StateText);
         Assert.Equal("707", snapshot.EnemyRobots[4].HealthText);
+        Assert.Equal("弹 --", snapshot.EnemyRobots[0].AmmoDisplayText);
         Assert.True(snapshot.EnemyRobots[0].IsBlue);
         Assert.Equal("Robot 1", snapshot.CurrentRobot.RobotLabel);
         Assert.Equal("HP 250/300", snapshot.CurrentRobot.HealthText);
@@ -131,6 +150,9 @@ public sealed class TelemetryMappingTests
 
         Assert.Equal(2, snapshot.ActiveBuffs.Count);
         Assert.Equal("ATK+50% 20s | COOL+30 9s", snapshot.AllyRobots[0].BuffText);
+        Assert.Equal(["ATK+50% 20s", "COOL+30 9s"], snapshot.AllyRobots[0].DisplayBuffLabels);
+        Assert.True(snapshot.AllyRobots[0].HasFirstBuff);
+        Assert.True(snapshot.AllyRobots[0].HasSecondBuff);
         Assert.Equal("ATK+50% 20s | COOL+30 9s", snapshot.CurrentRobot.BuffText);
         Assert.Equal("飞镖命中 方2 目标5", snapshot.LatestEvent?.SummaryText);
         Assert.Equal(2, snapshot.ActiveMechanisms.Count);
@@ -200,6 +222,7 @@ public sealed class TelemetryMappingTests
         Assert.Equal(206, snapshot.RadarRobots[6].PositionYcm);
         Assert.True(snapshot.RadarRobots[1].IsHighlighted);
         Assert.True(snapshot.RadarRobots[2].IsOfflineHighlighted);
+        Assert.True(snapshot.EnemyRobots[1].IsRadarLocked);
     }
 
     [Fact]
@@ -259,6 +282,97 @@ public sealed class TelemetryMappingTests
 
         Assert.Equal(ConnectionState.Degraded, store.CurrentSnapshot.LinkState);
         Assert.Equal("Telemetry stale", store.CurrentSnapshot.WarningText);
+    }
+
+    [Fact]
+    public void TelemetryStore_ApplyBatch_Publishes_Snapshot_Once()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        var publishes = 0;
+        store.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TelemetryStore.CurrentSnapshot))
+            {
+                publishes++;
+            }
+        };
+
+        store.ApplyBatch(new TelemetryUpdateBatch
+        {
+            GameStatus = new GameStatus { StageCountdownSec = 42 },
+            GlobalUnitStatus = new GlobalUnitStatus
+            {
+                BaseHealth = 1500,
+                RobotHealth = { 100, 200, 300, 400, 700, 101, 202, 303, 404, 707 }
+            },
+            RobotDynamicStatus = new RobotDynamicStatus { CurrentHealth = 88 }
+        });
+
+        Assert.Equal(1, publishes);
+        Assert.Equal("00:42", store.CurrentSnapshot.MatchTimeText);
+        Assert.Equal("100", store.CurrentSnapshot.AllyRobots[0].HealthText);
+    }
+
+    [Fact]
+    public void TelemetryStore_ApplyBatch_Preserves_Event_And_Buff_Order()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+
+        store.ApplyBatch(new TelemetryUpdateBatch
+        {
+            Events =
+            [
+                new Event { EventId = 1, Param = "1,2" },
+                new Event { EventId = 9, Param = "2,5" }
+            ],
+            Buffs =
+            [
+                new Buff
+                {
+                    RobotId = 1,
+                    BuffType = 1,
+                    BuffLevel = 50,
+                    BuffMaxTime = 20,
+                    BuffLeftTime = 20
+                },
+                new Buff
+                {
+                    RobotId = 1,
+                    BuffType = 1,
+                    BuffLevel = 50,
+                    BuffMaxTime = 20,
+                    BuffLeftTime = 0
+                }
+            ]
+        });
+
+        Assert.Equal("飞镖命中 方2 目标5", store.CurrentSnapshot.LatestEvent?.SummaryText);
+        Assert.Empty(store.CurrentSnapshot.ActiveBuffs);
+        Assert.Equal("BUFF --", store.CurrentSnapshot.AllyRobots[0].BuffText);
+    }
+
+    [Fact]
+    public void TelemetryStore_CustomByteBlockData_Works_When_Diagnostics_Disabled()
+    {
+        var settings = CreateSettings();
+        settings.EnableDebugMode = false;
+        var store = new TelemetryStore(settings, null!);
+        var payload = new byte[] { 0x01, 0x02, 0x03 };
+        var snapshot = store.CurrentSnapshot;
+        var publishes = 0;
+        store.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TelemetryStore.CurrentSnapshot))
+            {
+                publishes++;
+            }
+        };
+
+        store.ApplyCustomByteBlockData(payload);
+
+        Assert.Equal(payload, store.CustomByteBlockData);
+        Assert.Same(snapshot, store.CurrentSnapshot);
+        Assert.Equal(0, publishes);
     }
 
     private static AppSettings CreateSettings(string clientId = "1")

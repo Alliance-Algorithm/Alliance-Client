@@ -1,8 +1,7 @@
 <!--
 TeamPanel - 比赛信息面板控件
 
-己方：Outpost在左，Base在右，血条蓝色，从左往右缩进
-敌方：Base在左，Outpost在右，血条红色，从右往左缩进
+Outpost 与 Base 分两行显示，Outpost 在上，Base 在下。
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -13,58 +12,55 @@ TeamPanel - 比赛信息面板控件
              x:Class="Alliance.Client.Features.Hud.TeamPanel"
              x:DataType="telemetry:TeamPanelSnapshot"
              mc:Ignorable="d">
-    <Border Classes="hud-panel">
+    <Border x:Name="PanelFrame"
+            Classes="hud-panel">
         <StackPanel Spacing="6">
-            <!-- 第一行：建筑血量（数值在血条内） -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <!-- 己方布局：Outpost(左) + Base(右)，从左往右缩进 -->
-                <Grid Grid.Column="0" IsVisible="{Binding !IsEnemy}">
-                    <Border Classes="hud-bar-bg-outpost">
+            <!-- 建筑血量：Outpost 在上，Base 在下，显示当前/满血 -->
+            <StackPanel Spacing="4">
+                <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="8">
+                    <TextBlock Classes="hud-bar-label"
+                               Text="OUTPOST" />
+                    <Border x:Name="OutpostBarBg"
+                            Grid.Column="1"
+                            Classes="hud-structure-bar-bg">
                         <Border Classes="hud-bar-fill-center"
                                 Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                HorizontalAlignment="Right"
-                                Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
+                                HorizontalAlignment="Left">
+                            <Border.Width>
+                                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                                    <Binding Path="OutpostHealthPercent" />
+                                    <Binding Path="#OutpostBarBg.Bounds.Width" />
+                                </MultiBinding>
+                            </Border.Width>
+                        </Border>
                     </Border>
-                    <TextBlock Classes="hud-bar-value"
-                               HorizontalAlignment="Center"
-                               Text="{Binding OutpostHealthNumber}" />
-                </Grid>
-                <Grid Grid.Column="1" IsVisible="{Binding !IsEnemy}">
-                    <Border Classes="hud-bar-bg-base">
-                        <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                HorizontalAlignment="Right"
-                                Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
-                    </Border>
-                    <TextBlock Classes="hud-bar-value"
-                               HorizontalAlignment="Center"
-                               Text="{Binding BaseHealthNumber}" />
+                    <TextBlock Grid.Column="2"
+                               Classes="hud-bar-label"
+                               Text="{Binding OutpostHealthDisplay}" />
                 </Grid>
 
-                <!-- 敌方布局：Base(左) + Outpost(右)，从右往左缩进 -->
-                <Grid Grid.Column="0" IsVisible="{Binding IsEnemy}">
-                    <Border Classes="hud-bar-bg-base">
+                <Grid ColumnDefinitions="56,*,Auto" ColumnSpacing="8">
+                    <TextBlock Classes="hud-bar-label"
+                               Text="BASE" />
+                    <Border x:Name="BaseBarBg"
+                            Grid.Column="1"
+                            Classes="hud-structure-bar-bg">
                         <Border Classes="hud-bar-fill-center"
                                 Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                HorizontalAlignment="Left"
-                                Width="{Binding BaseHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=150}" />
+                                HorizontalAlignment="Left">
+                            <Border.Width>
+                                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                                    <Binding Path="BaseHealthPercent" />
+                                    <Binding Path="#BaseBarBg.Bounds.Width" />
+                                </MultiBinding>
+                            </Border.Width>
+                        </Border>
                     </Border>
-                    <TextBlock Classes="hud-bar-value"
-                               HorizontalAlignment="Center"
-                               Text="{Binding BaseHealthNumber}" />
+                    <TextBlock Grid.Column="2"
+                               Classes="hud-bar-label"
+                               Text="{Binding BaseHealthDisplay}" />
                 </Grid>
-                <Grid Grid.Column="1" IsVisible="{Binding IsEnemy}">
-                    <Border Classes="hud-bar-bg-outpost">
-                        <Border Classes="hud-bar-fill-center"
-                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                HorizontalAlignment="Left"
-                                Width="{Binding OutpostHealthPercent, Converter={x:Static local:BarWidthConverter.Instance}, ConverterParameter=45}" />
-                    </Border>
-                    <TextBlock Classes="hud-bar-value"
-                               HorizontalAlignment="Center"
-                               Text="{Binding OutpostHealthNumber}" />
-                </Grid>
-            </Grid>
+            </StackPanel>
 
             <!-- 第二行：累计总伤 -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="4">

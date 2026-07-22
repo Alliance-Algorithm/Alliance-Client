@@ -10,6 +10,8 @@ public sealed class AppSettings
 
     public VideoSettings Video { get; set; } = new();
 
+    public HudSettings Hud { get; set; } = new();
+
     public sealed class MqttSettings
     {
         public string Host { get; set; } = "192.168.12.1";
@@ -46,5 +48,14 @@ public sealed class AppSettings
         public int RestartInitialDelayMs { get; set; } = 1000;
 
         public int RestartMaxDelayMs { get; set; } = 30000;
+    }
+
+    public sealed class HudSettings
+    {
+        public double RobotTextScale { get; set; } = 1.2;
+
+        public double RobotWidthScale { get; set; } = 0.8;
+
+        public double MatchInfoPanelBackgroundOpacity { get; set; } = 0.8;
     }
 }

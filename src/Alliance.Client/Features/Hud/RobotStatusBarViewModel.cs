@@ -1,5 +1,6 @@
 using Alliance.Client.Features.Telemetry;
 using CommunityToolkit.Mvvm.ComponentModel;
+using System.Globalization;
 
 namespace Alliance.Client.Features.Hud;
 
@@ -25,7 +26,14 @@ public sealed class RobotStatusBarViewModel : ObservableObject
     public IReadOnlyList<RobotStatusSnapshot> Robots
     {
         get => _robots;
-        set => SetProperty(ref _robots, value);
+        set
+        {
+            if (SetProperty(ref _robots, value))
+            {
+                OnPropertyChanged(nameof(AliveSummaryText));
+                OnPropertyChanged(nameof(TotalHealthText));
+            }
+        }
     }
 
     public double RobotTextScale
@@ -35,4 +43,20 @@ public sealed class RobotStatusBarViewModel : ObservableObject
     }
 
     public bool IsEnemy { get; }
+
+    public string AliveSummaryText => $"存活 {Robots.Count(r => r.IsAlive)}/{Robots.Count}";
+
+    public string TotalHealthText
+    {
+        get
+        {
+            var known = Robots.Where(r => r.HealthValue.HasValue).ToArray();
+            if (known.Length == 0)
+            {
+                return "总血量 --";
+            }
+
+            return $"总血量 {known.Sum(r => r.HealthValue!.Value).ToString("N0", CultureInfo.InvariantCulture)}";
+        }
+    }
 }

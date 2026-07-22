@@ -15,6 +15,8 @@ namespace Alliance.Client.Features.Telemetry;
 
 public sealed class MqttTelemetryService : ITelemetryService
 {
+    private static readonly TimeSpan TelemetryFlushInterval = TimeSpan.FromMilliseconds(50);
+
     private static readonly string[] Topics =
     [
         nameof(GameStatus),
@@ -32,12 +34,24 @@ public sealed class MqttTelemetryService : ITelemetryService
     private readonly AppSettings _settings;
     private readonly TelemetryStore _telemetryStore;
     private readonly ILogger<MqttTelemetryService> _logger;
+    private readonly object _batchGate = new();
+    private readonly List<Event> _pendingEvents = [];
+    private readonly List<Buff> _pendingBuffs = [];
 
     private CancellationTokenSource? _runtimeCts;
     private Task? _runTask;
     private Task? _monitorTask;
+    private Task? _batchTask;
     private IMqttClient? _client;
     private TimeSpan _retryDelay = TimeSpan.FromSeconds(2);
+    private DateTimeOffset? _pendingReceivedAt;
+    private GameStatus? _pendingGameStatus;
+    private GlobalUnitStatus? _pendingGlobalUnitStatus;
+    private GlobalLogisticsStatus? _pendingGlobalLogisticsStatus;
+    private GlobalSpecialMechanism? _pendingGlobalSpecialMechanism;
+    private RobotStaticStatus? _pendingRobotStaticStatus;
+    private RobotDynamicStatus? _pendingRobotDynamicStatus;
+    private RadarInfoToClient? _pendingRadarInfoToClient;
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(2);
 
@@ -69,6 +83,7 @@ public sealed class MqttTelemetryService : ITelemetryService
         _runtimeCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _runTask = Task.Run(() => RunAsync(_runtimeCts.Token), _runtimeCts.Token);
         _monitorTask = Task.Run(() => MonitorAsync(_runtimeCts.Token), _runtimeCts.Token);
+        _batchTask = Task.Run(() => TelemetryBatchLoopAsync(_runtimeCts.Token), _runtimeCts.Token);
         return Task.CompletedTask;
     }
 
@@ -81,7 +96,7 @@ public sealed class MqttTelemetryService : ITelemetryService
 
         await _runtimeCts.CancelAsync();
 
-        var tasks = new[] { _runTask, _monitorTask }.Where(task => task is not null).Cast<Task>().ToArray();
+        var tasks = new[] { _runTask, _monitorTask, _batchTask }.Where(task => task is not null).Cast<Task>().ToArray();
         try
         {
             await Task.WhenAll(tasks).WaitAsync(cancellationToken);
@@ -95,6 +110,7 @@ public sealed class MqttTelemetryService : ITelemetryService
             _runtimeCts = null;
             _runTask = null;
             _monitorTask = null;
+            _batchTask = null;
         }
     }
 
@@ -233,6 +249,43 @@ public sealed class MqttTelemetryService : ITelemetryService
         }
     }
 
+    private async Task TelemetryBatchLoopAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TelemetryFlushInterval);
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                try
+                {
+                    await FlushPendingTelemetryAsync();
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Telemetry batch flush failed: {Message}", ex.Message);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task FlushPendingTelemetryAsync()
+    {
+        var batch = TakePendingTelemetryBatch();
+        if (!batch.HasUpdates)
+        {
+            return;
+        }
+
+        await RunOnUiThreadAsync(() => _telemetryStore.ApplyBatch(batch), DispatcherPriority.Background);
+    }
+
     private async Task HandleConnectedAsync(MqttClientConnectedEventArgs args)
     {
         _logger.LogInformation(
@@ -294,58 +347,65 @@ public sealed class MqttTelemetryService : ITelemetryService
     {
         try
         {
+            var rawTopic = args.ApplicationMessage.Topic;
+            var topic = ResolveTopicName(rawTopic);
             var payload = args.ApplicationMessage.Payload.ToArray();
             _logger.LogDebug(
-                "MQTT message received on topic '{Topic}' ({Bytes} bytes)",
-                args.ApplicationMessage.Topic,
+                "MQTT message received on topic '{Topic}' as '{ResolvedTopic}' ({Bytes} bytes)",
+                rawTopic,
+                topic,
                 payload.Length);
-            switch (args.ApplicationMessage.Topic)
+            switch (topic)
             {
                 case nameof(GameStatus):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyGameStatus(GameStatus.Parser.ParseFrom(payload)));
+                    EnqueueGameStatus(GameStatus.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(GlobalUnitStatus):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyGlobalUnitStatus(GlobalUnitStatus.Parser.ParseFrom(payload)));
+                    EnqueueGlobalUnitStatus(GlobalUnitStatus.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(GlobalLogisticsStatus):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyGlobalLogisticsStatus(GlobalLogisticsStatus.Parser.ParseFrom(payload)));
+                    EnqueueGlobalLogisticsStatus(GlobalLogisticsStatus.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(GlobalSpecialMechanism):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyGlobalSpecialMechanism(GlobalSpecialMechanism.Parser.ParseFrom(payload)));
+                    EnqueueGlobalSpecialMechanism(GlobalSpecialMechanism.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(Event):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyEvent(Event.Parser.ParseFrom(payload)));
+                    EnqueueEvent(Event.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(RobotStaticStatus):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyRobotStaticStatus(RobotStaticStatus.Parser.ParseFrom(payload)));
+                    EnqueueRobotStaticStatus(RobotStaticStatus.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(RobotDynamicStatus):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyRobotDynamicStatus(RobotDynamicStatus.Parser.ParseFrom(payload)));
+                    EnqueueRobotDynamicStatus(RobotDynamicStatus.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(Buff):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyBuff(Buff.Parser.ParseFrom(payload)));
+                    EnqueueBuff(Buff.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(RadarInfoToClient):
-                    return RunOnUiThreadAsync(() =>
-                        _telemetryStore.ApplyRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload)));
+                    EnqueueRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 case nameof(CustomByteBlock):
                 {
-                    var raw = payload;
+                    var data = CustomByteBlock.Parser.ParseFrom(payload).Data.ToByteArray();
                     _ = Task.Run(() =>
                     {
                         try
                         {
-                            _telemetryStore.ApplyCustomByteBlock(CustomByteBlock.Parser.ParseFrom(raw));
+                            _telemetryStore.ProcessCustomByteBlockImage(data);
                         }
                         catch (Exception ex)
                         {
                             _logger.LogWarning(ex, "CustomByteBlock processing failed");
                         }
                     });
-                    break;
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyCustomByteBlockData(data));
                 }
                 default:
-                    _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
+                    _logger.LogWarning(
+                        "Ignoring unsupported MQTT topic '{Topic}' resolved as '{ResolvedTopic}'",
+                        rawTopic,
+                        topic);
                     break;
             }
 
@@ -358,12 +418,137 @@ public sealed class MqttTelemetryService : ITelemetryService
         }
     }
 
-    private static Task RunOnUiThreadAsync(Action action)
+    private static string ResolveTopicName(string topic)
     {
-        return RunOnUiThreadCoreAsync(action);
+        var segments = topic.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 0 ? topic : segments[^1];
     }
 
-    private static async Task RunOnUiThreadCoreAsync(Action action)
+    private void EnqueueGameStatus(GameStatus status)
+    {
+        lock (_batchGate)
+        {
+            _pendingGameStatus = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueGlobalUnitStatus(GlobalUnitStatus status)
+    {
+        lock (_batchGate)
+        {
+            _pendingGlobalUnitStatus = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueGlobalLogisticsStatus(GlobalLogisticsStatus status)
+    {
+        lock (_batchGate)
+        {
+            _pendingGlobalLogisticsStatus = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueGlobalSpecialMechanism(GlobalSpecialMechanism status)
+    {
+        lock (_batchGate)
+        {
+            _pendingGlobalSpecialMechanism = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueEvent(Event status)
+    {
+        lock (_batchGate)
+        {
+            _pendingEvents.Add(status);
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueRobotStaticStatus(RobotStaticStatus status)
+    {
+        lock (_batchGate)
+        {
+            _pendingRobotStaticStatus = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueRobotDynamicStatus(RobotDynamicStatus status)
+    {
+        lock (_batchGate)
+        {
+            _pendingRobotDynamicStatus = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueBuff(Buff status)
+    {
+        lock (_batchGate)
+        {
+            _pendingBuffs.Add(status);
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private void EnqueueRadarInfoToClient(RadarInfoToClient status)
+    {
+        lock (_batchGate)
+        {
+            _pendingRadarInfoToClient = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private TelemetryUpdateBatch TakePendingTelemetryBatch()
+    {
+        lock (_batchGate)
+        {
+            var batch = new TelemetryUpdateBatch
+            {
+                ReceivedAt = _pendingReceivedAt ?? DateTimeOffset.UtcNow,
+                GameStatus = _pendingGameStatus,
+                GlobalUnitStatus = _pendingGlobalUnitStatus,
+                GlobalLogisticsStatus = _pendingGlobalLogisticsStatus,
+                GlobalSpecialMechanism = _pendingGlobalSpecialMechanism,
+                RobotStaticStatus = _pendingRobotStaticStatus,
+                RobotDynamicStatus = _pendingRobotDynamicStatus,
+                RadarInfoToClient = _pendingRadarInfoToClient,
+                Events = _pendingEvents.ToArray(),
+                Buffs = _pendingBuffs.ToArray()
+            };
+
+            _pendingReceivedAt = null;
+            _pendingGameStatus = null;
+            _pendingGlobalUnitStatus = null;
+            _pendingGlobalLogisticsStatus = null;
+            _pendingGlobalSpecialMechanism = null;
+            _pendingRobotStaticStatus = null;
+            _pendingRobotDynamicStatus = null;
+            _pendingRadarInfoToClient = null;
+            _pendingEvents.Clear();
+            _pendingBuffs.Clear();
+
+            return batch;
+        }
+    }
+
+    private Task RunOnUiThreadAsync(Action action)
+    {
+        return RunOnUiThreadCoreAsync(action, priority: null);
+    }
+
+    private Task RunOnUiThreadAsync(Action action, DispatcherPriority priority)
+    {
+        return RunOnUiThreadCoreAsync(action, priority);
+    }
+
+    private async Task RunOnUiThreadCoreAsync(Action action, DispatcherPriority? priority)
     {
         if (Dispatcher.UIThread.CheckAccess())
         {
@@ -371,6 +556,13 @@ public sealed class MqttTelemetryService : ITelemetryService
             return;
         }
 
-        await Dispatcher.UIThread.InvokeAsync(action);
+        if (priority.HasValue)
+        {
+            await Dispatcher.UIThread.InvokeAsync(action, priority.Value);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
     }
 }

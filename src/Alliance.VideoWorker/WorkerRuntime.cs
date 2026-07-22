@@ -1,5 +1,4 @@
 using System.Buffers;
-using System.Diagnostics;
 using System.IO;
 using System.IO.MemoryMappedFiles;
 using System.IO.Pipes;
@@ -16,6 +15,7 @@ namespace Alliance.VideoWorker;
 
 internal sealed class WorkerRuntime : IDisposable
 {
+    private const int MaxWorkerPresentFps = 30;
     private static readonly TimeSpan PipeConnectTimeout = TimeSpan.FromSeconds(5);
 
     private readonly VideoControlMessage _control;
@@ -118,6 +118,9 @@ internal sealed class WorkerRuntime : IDisposable
 
         var packetBuffer = ArrayPool<byte>.Shared.Rent(2048);
         long frameNumber = 0;
+        var workerPresentFps = Math.Clamp(_control.PresentFps, 1, MaxWorkerPresentFps);
+        var minPublishInterval = TimeSpan.FromMilliseconds(1000d / workerPresentFps);
+        var lastPublishedAt = DateTimeOffset.MinValue;
         var lastDiagnosticsAt = DateTimeOffset.UtcNow;
         try
         {
@@ -140,9 +143,16 @@ internal sealed class WorkerRuntime : IDisposable
                         _decoder.Decode(frameBytes, outputFrames);
                         foreach (var decoded in outputFrames)
                         {
+                            _status.MarkFrameDecoded();
+                            var publishNow = DateTimeOffset.UtcNow;
+                            if (publishNow - lastPublishedAt < minPublishInterval)
+                            {
+                                continue;
+                            }
+
+                            lastPublishedAt = publishNow;
                             frameNumber++;
                             PublishFrame(decoded.Buffer, frameNumber, decoded.TimestampUnixMs);
-                            _status.MarkFrameDecoded();
                             _status.MarkFramePresented(decoded.TimestampUnixMs);
                         }
                     }
@@ -171,7 +181,7 @@ internal sealed class WorkerRuntime : IDisposable
         }
     }
 
-    private void PublishFrame(ReadOnlySpan<byte> frame, long frameNumber, long timestampUnixMs)
+    private void PublishFrame(byte[] frame, long frameNumber, long timestampUnixMs)
     {
         var slotIndex = (int)(frameNumber % VideoConstants.SharedBufferSlots);
         var slotHeader = new byte[VideoConstants.FrameHeaderSize];
@@ -192,8 +202,7 @@ internal sealed class WorkerRuntime : IDisposable
             stable: false);
         _accessor.WriteArray(slotOffset, slotHeader, 0, slotHeader.Length);
 
-        var buffer = frame.ToArray();
-        _accessor.WriteArray(dataOffset, buffer, 0, buffer.Length);
+        _accessor.WriteArray(dataOffset, frame, 0, frame.Length);
 
         SharedFrameLayout.WriteSlotHeader(
             slotHeader,

@@ -28,8 +28,16 @@ public sealed class VideoStreamStore : ObservableObject
     public WriteableBitmap? Surface
     {
         get => _surface;
-        private set => SetProperty(ref _surface, value);
+        private set
+        {
+            if (SetProperty(ref _surface, value))
+            {
+                OnPropertyChanged(nameof(IsWaitingForFrame));
+            }
+        }
     }
+
+    public bool IsWaitingForFrame => Surface is null;
 
     public event Action? FrameUpdated;
 

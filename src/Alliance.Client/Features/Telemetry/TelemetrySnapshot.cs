@@ -1,4 +1,5 @@
 using Alliance.Client.Shared.Models;
+using Alliance.Client.Shared.Utils;
 
 namespace Alliance.Client.Features.Telemetry;
 
@@ -72,6 +73,14 @@ public sealed record TeamPanelSnapshot(
         ? OutpostHealthValue.Value.ToString()
         : "--";
 
+    public string BaseHealthDisplay => BaseMaxHealth.HasValue
+        ? $"{BaseHealthNumber}/{BaseMaxHealth.Value}"
+        : $"{BaseHealthNumber}/--";
+
+    public string OutpostHealthDisplay => OutpostMaxHealth.HasValue
+        ? $"{OutpostHealthNumber}/{OutpostMaxHealth.Value}"
+        : $"{OutpostHealthNumber}/--";
+
     public string TeamColorClass => IsBlue ? "blue" : "red";
 }
 
@@ -85,7 +94,14 @@ public sealed record RobotStatusSnapshot(
     int? AmmoValue = null,
     bool ShowHealthBar = true,
     bool IsEnemy = false,
-    bool IsBlue = true)
+    bool IsBlue = true,
+    string RobotTypeText = "--",
+    string HealthDisplayText = "--",
+    string AmmoDisplayText = "弹 --",
+    bool IsAlive = true,
+    bool IsAerial = false,
+    bool IsRadarLocked = false,
+    IReadOnlyList<string>? BuffLabels = null)
 {
     public double HealthPercent =>
         HealthValue.HasValue && MaxHealthValue is > 0
@@ -93,6 +109,23 @@ public sealed record RobotStatusSnapshot(
             : 0;
 
     public string BarColorClass => IsEnemy ? "enemy" : "ally";
+
+    public IReadOnlyList<string> DisplayBuffLabels => BuffLabels ?? [];
+
+    public bool HasFirstBuff => DisplayBuffLabels.Count >= 1;
+
+    public bool HasSecondBuff => DisplayBuffLabels.Count >= 2;
+
+    public string FirstBuffText => HasFirstBuff ? DisplayBuffLabels[0] : string.Empty;
+
+    public string SecondBuffText => HasSecondBuff ? DisplayBuffLabels[1] : string.Empty;
+
+    public double CardOpacity => IsAlive ? 1.0 : 0.46;
+
+    public string StateText =>
+        IsAerial
+            ? "空中单位"
+            : IsAlive ? "ONLINE" : "已击毁";
 }
 
 public sealed record CurrentRobotPanelSnapshot(
@@ -179,6 +212,14 @@ public sealed record TelemetrySnapshot
 
     public ConnectionState LinkState { get; init; } = ConnectionState.NotConnected;
 
+    public int? CurrentRound { get; init; }
+
+    public int? TotalRounds { get; init; }
+
+    public int? RedScore { get; init; }
+
+    public int? BlueScore { get; init; }
+
     public string MatchTimeText { get; init; } = "00:00";
 
     public string StageText { get; init; } = "--";
@@ -207,6 +248,40 @@ public sealed record TelemetrySnapshot
     public string LastUpdateText { get; init; } = "Awaiting MQTT packets";
 
     public string WarningText { get; init; } = "Telemetry offline";
+
+    public string MqttStatusText => $"MQTT {MqttState.ToDisplayText()}";
+
+    public string LinkStatusText => $"LINK {LinkState.ToDisplayText()}";
+
+    public string LastUpdateCompactText
+    {
+        get
+        {
+            const string prefix = "Last telemetry ";
+            const string suffix = " ago";
+            if (LastUpdateText.StartsWith(prefix, StringComparison.Ordinal) &&
+                LastUpdateText.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return $"DATA {LastUpdateText[prefix.Length..^suffix.Length]}";
+            }
+
+            return LastUpdateText == "Awaiting MQTT packets" ? "DATA --" : LastUpdateText;
+        }
+    }
+
+    public string RoundText =>
+        CurrentRound.HasValue || TotalRounds.HasValue
+            ? $"Round {CurrentRound?.ToString() ?? "--"}/{TotalRounds?.ToString() ?? "--"}"
+            : "Round --";
+
+    public string BlueScoreText => BlueScore?.ToString() ?? "--";
+
+    public string RedScoreText => RedScore?.ToString() ?? "--";
+
+    public string MechanismSummaryText =>
+        ActiveMechanisms.Count == 0
+            ? "机制 --"
+            : string.Join("  ", ActiveMechanisms.Select(m => m.SummaryText));
 
     private static IReadOnlyList<RobotStatusSnapshot> CreateDefaultRobotBars()
     {

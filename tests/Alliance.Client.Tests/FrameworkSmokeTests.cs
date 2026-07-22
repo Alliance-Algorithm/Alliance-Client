@@ -36,6 +36,30 @@ public sealed class FrameworkSmokeTests
         Assert.Equal("101", settings.Mqtt.ClientId);
         Assert.True(settings.Video.Enabled);
         Assert.Equal(3334, settings.Video.UdpPort);
+        Assert.Equal(1.2, settings.Hud.RobotTextScale);
+        Assert.Equal(0.8, settings.Hud.RobotWidthScale);
+        Assert.Equal(0.8, settings.Hud.MatchInfoPanelBackgroundOpacity);
+    }
+
+    [Fact]
+    public void HudLayoutSettings_Uses_Display_Defaults_And_Clamps_To_50_Percent()
+    {
+        var settings = new AppSettings();
+        var layoutSettings = new HudLayoutSettings(settings);
+
+        Assert.Equal(1.2, layoutSettings.RobotTextScale);
+        Assert.Equal(0.8, layoutSettings.RobotWidthScale);
+
+        for (var index = 0; index < 20; index++)
+        {
+            layoutSettings.DecreaseRobotText();
+            layoutSettings.DecreaseRobotWidth();
+        }
+
+        Assert.Equal(0.5, layoutSettings.RobotTextScale);
+        Assert.Equal(0.5, layoutSettings.RobotWidthScale);
+        Assert.Equal(0.5, settings.Hud.RobotTextScale);
+        Assert.Equal(0.5, settings.Hud.RobotWidthScale);
     }
 
     [Fact]
