@@ -73,6 +73,31 @@ public sealed class TelemetryMappingTests
     }
 
     [Fact]
+    public void TelemetryStore_Uses_PerRobot_DisplayMax_For_RobotHealthBars()
+    {
+        var store = new TelemetryStore(CreateSettings());
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+        store.ApplyGlobalUnitStatus(new GlobalUnitStatus
+        {
+            RobotHealth = { 250, 200, 150, 75, 200, 501, 200, 301, 151, 401 }
+        });
+
+        var snapshot = store.CurrentSnapshot;
+
+        Assert.Equal(500, snapshot.AllyRobots[0].MaxHealthValue);
+        Assert.Equal(300, snapshot.AllyRobots[2].MaxHealthValue);
+        Assert.Equal(300, snapshot.AllyRobots[3].MaxHealthValue);
+        Assert.Equal(400, snapshot.AllyRobots[4].MaxHealthValue);
+        Assert.Equal(0.5, snapshot.AllyRobots[0].HealthPercent, precision: 3);
+        Assert.Equal(0.5, snapshot.AllyRobots[2].HealthPercent, precision: 3);
+        Assert.Equal(0.25, snapshot.AllyRobots[3].HealthPercent, precision: 3);
+        Assert.Equal(0.5, snapshot.AllyRobots[4].HealthPercent, precision: 3);
+        Assert.Equal(1.0, snapshot.EnemyRobots[0].HealthPercent, precision: 3);
+        Assert.Equal(1.0, snapshot.EnemyRobots[2].HealthPercent, precision: 3);
+        Assert.Equal(1.0, snapshot.EnemyRobots[4].HealthPercent, precision: 3);
+    }
+
+    [Fact]
     public void ProtocolMessages_RoundTrip_ExtendedSchemaFields()
     {
         var status = new GameStatus

@@ -460,6 +460,7 @@ public sealed class TelemetryStore : ObservableObject
             var bullets = TryReadRobotBullets(isAllyTeam, relativeRobotId);
             var absoluteRobotId = ResolveTeamRobotId(relativeRobotId, isAllyTeam);
             var showHealthBar = relativeRobotId != 6;
+            var maxHealth = ResolveRobotHealthDisplayMax(relativeRobotId);
 
             values.Add(new RobotStatusSnapshot(
                 slotLabel,
@@ -467,7 +468,7 @@ public sealed class TelemetryStore : ObservableObject
                 bullets?.ToString(CultureInfo.InvariantCulture) ?? "--",
                 BuildRobotBuffSummary(activeBuffs, absoluteRobotId, maxEntries: 2),
                 health,
-                500,
+                maxHealth,
                 bullets,
                 showHealthBar,
                 IsEnemy: !isAllyTeam,
@@ -475,6 +476,17 @@ public sealed class TelemetryStore : ObservableObject
         }
 
         return values;
+    }
+
+    private static int ResolveRobotHealthDisplayMax(int relativeRobotId)
+    {
+        return relativeRobotId switch
+        {
+            1 => 500,
+            3 or 4 => 300,
+            7 => 400,
+            _ => 500
+        };
     }
 
     private int? TryReadRobotHealth(bool isAllyTeam, int relativeRobotId)

@@ -20,7 +20,7 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
 子控件说明：
 1. TeamPanel x2: 己方/敌方比赛信息（叠加在视频画面上）
 2. MatchTimer: 比赛倒计时（叠加在视频画面上）
-3. RobotStatusBar x2: 己方/敌方机器人列表（右侧2列）
+3. RobotStatusBar x2: 己方/敌方机器人列表（默认右侧2列，可切换到左侧）
 4. CurrentRobotPanel: 当前操控机器人的详细状态
 5. MapPanel: 地图面板（预留）
 6. EventPanel: 赛场事件消息面板（预留）
@@ -50,7 +50,8 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
         RowSpacing="4" ColumnSpacing="4" Margin="24">
 
     <!-- ===== 左上 6x6 区域：视频画面 + 叠加比赛信息 ===== -->
-    <Border Grid.Row="0" Grid.Column="0"
+    <Border x:Name="VideoRegion"
+            Grid.Row="0" Grid.Column="0"
             Classes="hud-region"
             Background="#0D111780" CornerRadius="8">
       <Grid>
@@ -89,7 +90,8 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
     </Border>
 
     <!-- ===== 右侧 2列 x 6行：机器人状态栏（己方左、敌方右） ===== -->
-    <Grid Grid.Row="0" Grid.Column="1"
+    <Grid x:Name="RobotStatusRegion"
+          Grid.Row="0" Grid.Column="1"
           ColumnDefinitions="*,*" ColumnSpacing="4">
       <!-- 己方机器人状态栏 (Col 6) -->
       <vm:RobotStatusBar Grid.Column="0"

@@ -12,6 +12,7 @@ public sealed class HudLayoutSettings : ObservableObject
 
     private double _robotTextScale = 1.0;
     private double _robotWidthScale = 1.0;
+    private bool _robotStatusBarsOnLeft;
 
     public double RobotTextScale
     {
@@ -25,6 +26,12 @@ public sealed class HudLayoutSettings : ObservableObject
         private set => SetProperty(ref _robotWidthScale, value);
     }
 
+    public bool RobotStatusBarsOnLeft
+    {
+        get => _robotStatusBarsOnLeft;
+        private set => SetProperty(ref _robotStatusBarsOnLeft, value);
+    }
+
     public bool IncreaseRobotText() => SetRobotText(RobotTextScale + Step);
 
     public bool DecreaseRobotText() => SetRobotText(RobotTextScale - Step);
@@ -32,6 +39,17 @@ public sealed class HudLayoutSettings : ObservableObject
     public bool IncreaseRobotWidth() => SetRobotWidth(RobotWidthScale + Step);
 
     public bool DecreaseRobotWidth() => SetRobotWidth(RobotWidthScale - Step);
+
+    public bool SetRobotStatusBarsOnLeft(bool value)
+    {
+        if (RobotStatusBarsOnLeft == value)
+        {
+            return false;
+        }
+
+        RobotStatusBarsOnLeft = value;
+        return true;
+    }
 
     private bool SetRobotText(double value)
     {

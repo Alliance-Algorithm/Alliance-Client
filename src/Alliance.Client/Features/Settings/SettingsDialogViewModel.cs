@@ -165,6 +165,18 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
     public string RobotWidthScaleText => $"{_hudLayoutSettings.RobotWidthScale:P0}";
 
+    public bool RobotStatusBarsOnLeft
+    {
+        get => _hudLayoutSettings.RobotStatusBarsOnLeft;
+        set
+        {
+            if (_hudLayoutSettings.SetRobotStatusBarsOnLeft(value))
+            {
+                RaiseDisplayStateChanged();
+            }
+        }
+    }
+
     [RelayCommand]
     private async Task ApplyClientIdAsync()
     {
@@ -231,6 +243,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(RobotTextScaleText));
         OnPropertyChanged(nameof(RobotWidthScaleText));
+        OnPropertyChanged(nameof(RobotStatusBarsOnLeft));
     }
 
     private void RefreshFields()

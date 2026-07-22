@@ -286,6 +286,10 @@
     <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
   </Style>
 
+  <Style Selector="ToggleSwitch.settings-toggle:not(:checked) /template/ Border#OuterBorder">
+    <Setter Property="Background" Value="#6B7580" />
+  </Style>
+
   <!-- 机器人单元格 -->
   <Style Selector="Border.hud-robot-cell">
     <Setter Property="Background" Value="#0D111799" />

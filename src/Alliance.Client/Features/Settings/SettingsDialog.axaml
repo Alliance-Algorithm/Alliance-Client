@@ -177,6 +177,19 @@
                           Command="{Binding IncreaseRobotWidthCommand}" />
                 </Grid>
 
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Left Side" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <TextBlock Grid.Column="1" Text="Move robot status bars to the left"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold" />
+                  <ToggleSwitch Grid.Column="2"
+                                Classes="settings-toggle"
+                                IsChecked="{Binding RobotStatusBarsOnLeft}" />
+                </Grid>
+
               </StackPanel>
             </Border>
           </StackPanel>

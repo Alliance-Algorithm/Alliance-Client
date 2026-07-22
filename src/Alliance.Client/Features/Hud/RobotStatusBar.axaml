@@ -49,14 +49,21 @@ RobotStatusBar - 机器人状态列表控件
                                                VerticalAlignment="Center"
                                                Width="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=18}"
                                                FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=12}" />
-                                    <Border Classes="hud-bar-bg"
+                                    <Border x:Name="HealthBarBg"
+                                            Classes="hud-bar-bg"
                                             Grid.Column="1"
                                             VerticalAlignment="Center"
                                             IsVisible="{Binding ShowHealthBar}">
                                         <Border Classes="hud-bar-fill"
                                                 Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                                HorizontalAlignment="Left"
-                                                Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                                                HorizontalAlignment="Left">
+                                            <Border.Width>
+                                                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                                                    <Binding Path="HealthPercent" />
+                                                    <Binding Path="#HealthBarBg.Bounds.Width" />
+                                                </MultiBinding>
+                                            </Border.Width>
+                                        </Border>
                                     </Border>
                                     <TextBlock Grid.Column="2" Classes="hud-detail"
                                                Text="{Binding HealthText}"

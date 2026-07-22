@@ -19,9 +19,11 @@
   <Grid>
     <hud:HudOverlay DataContext="{Binding Hud}" />
 
-    <!-- 设置按钮（视频区域左上角） -->
+    <!-- 设置按钮（随 HUD 左右切换） -->
     <Border Classes="settings-btn"
-            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,30,0,0"
+            HorizontalAlignment="{Binding SettingsButtonHorizontalAlignment}"
+            VerticalAlignment="Top"
+            Margin="{Binding SettingsButtonMargin}"
             PointerPressed="OnSettingsPressed" ZIndex="300">
       <StackPanel Orientation="Horizontal" Spacing="6">
         <TextBlock Text="⚙" FontSize="14" VerticalAlignment="Center"

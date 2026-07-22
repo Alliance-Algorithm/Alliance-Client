@@ -4,7 +4,9 @@ using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Layout;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -41,6 +43,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _currentRobotLabel = snapshot.CurrentRobot.RobotLabel;
 
         _telemetryStore.PropertyChanged += HandleTelemetryChanged;
+        _hudLayoutSettings.PropertyChanged += HandleHudLayoutSettingsChanged;
     }
 
     public string WindowTitle { get; }
@@ -53,12 +56,30 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public HudOverlayViewModel Hud { get; }
 
+    public HorizontalAlignment SettingsButtonHorizontalAlignment =>
+        _hudLayoutSettings.RobotStatusBarsOnLeft
+            ? HorizontalAlignment.Right
+            : HorizontalAlignment.Left;
+
+    public Thickness SettingsButtonMargin =>
+        _hudLayoutSettings.RobotStatusBarsOnLeft
+            ? new Thickness(0, 30, 30, 0)
+            : new Thickness(30, 30, 0, 0);
+
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName != nameof(TelemetryStore.CurrentSnapshot)) return;
 
         var snapshot = _telemetryStore.CurrentSnapshot;
         CurrentRobotLabel = snapshot.CurrentRobot.RobotLabel;
+    }
+
+    private void HandleHudLayoutSettingsChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName != nameof(HudLayoutSettings.RobotStatusBarsOnLeft)) return;
+
+        OnPropertyChanged(nameof(SettingsButtonHorizontalAlignment));
+        OnPropertyChanged(nameof(SettingsButtonMargin));
     }
 
     public void OpenSettings(Window owner)
