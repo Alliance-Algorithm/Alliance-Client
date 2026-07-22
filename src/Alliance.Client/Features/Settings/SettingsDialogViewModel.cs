@@ -127,6 +127,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
             {
                 IsBasicTab = false;
                 IsDisplayTab = false;
+                RefreshFields();
             }
         }
     }
@@ -219,6 +220,10 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         MqttStatusLabel = snapshot.MqttState.ToDisplayText();
         LinkStatusLabel = snapshot.LinkState.ToDisplayText();
         LastUpdateText = snapshot.LastUpdateText;
+        if (IsMessageTab)
+        {
+            RefreshFields();
+        }
     }
 
     private void HandleVideoChanged(object? sender, PropertyChangedEventArgs args)

@@ -1,22 +1,4 @@
-<!--
-RobotStatusBar - 机器人状态列表控件
-
-渲染结构（每个机器人独立框起来，占1x1，三行显示）：
-┌─────────────────────┐
-│  1  ████████████  450│ 第一行：编号 + 血条 + 血量
-│     AMMO 28          │ 第二行：允许发弹量
-│     ATK+15% 12s      │ 第三行：增益
-└─────────────────────┘
-┌─────────────────────┐
-│  2  █████████░░░  380│
-│     AMMO 25          │
-│     DEF+10% 8s       │
-└─────────────────────┘
-... (6 robots, 占满整个高度)
-
-数据绑定：RobotStatusBarViewModel
-- Robots: 机器人状态集合 (IReadOnlyList<RobotStatusSnapshot>)
--->
+<!-- RobotStatusBar - 双方机器人侧栏，大卡片样式 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -28,9 +10,23 @@ RobotStatusBar - 机器人状态列表控件
              x:Class="Alliance.Client.Features.Hud.RobotStatusBar"
              x:DataType="vm:RobotStatusBarViewModel"
              mc:Ignorable="d">
-    <Border Classes="hud-panel" VerticalAlignment="Stretch" Padding="6">
-        <Grid RowDefinitions="*,*,*,*,*,*">
-            <ItemsControl Grid.Row="0" Grid.RowSpan="6"
+    <Border Classes="hud-panel" VerticalAlignment="Stretch" Padding="0">
+        <Grid RowDefinitions="Auto,*">
+            <Border Grid.Row="0" Classes="hud-robot-side-header">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2">
+                    <TextBlock Grid.Row="0" Grid.Column="0"
+                               Classes="hud-robot-side-title"
+                               Text="{Binding Caption}" />
+                    <TextBlock Grid.Row="0" Grid.Column="1"
+                               Classes="hud-robot-side-stat"
+                               Text="{Binding AliveSummaryText}" />
+                    <TextBlock Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                               Classes="hud-robot-side-stat"
+                               Text="{Binding TotalHealthText}" />
+                </Grid>
+            </Border>
+
+            <ItemsControl Grid.Row="1"
                           ItemsSource="{Binding Robots}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -39,49 +35,93 @@ RobotStatusBar - 机器人状态列表控件
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="telemetry:RobotStatusSnapshot">
-                        <Border Classes="hud-robot-cell" Margin="0,2"
-                                VerticalAlignment="Stretch">
-                            <Grid RowDefinitions="*,*,*">
-                                <!-- 第一行：编号 + 血条 + 血量 -->
-                                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
-                                    <TextBlock Classes="hud-slot"
-                                               Text="{Binding SlotLabel}"
-                                               VerticalAlignment="Center"
-                                               Width="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=18}"
-                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=12}" />
-                                    <Border Classes="hud-bar-bg"
-                                            Grid.Column="1"
-                                            VerticalAlignment="Center"
-                                            IsVisible="{Binding ShowHealthBar}">
-                                        <Border Classes="hud-bar-fill"
-                                                Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
-                                                HorizontalAlignment="Left"
-                                                Width="{Binding HealthPercent, Converter={x:Static local:PercentToWidthConverter.Instance}}" />
+                        <Border Classes="hud-robot-card" Margin="6,3"
+                                VerticalAlignment="Stretch"
+                                Opacity="{Binding CardOpacity}">
+                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="5">
+                                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                                    <Border Classes="hud-robot-slot-badge"
+                                            Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}">
+                                        <TextBlock Text="{Binding SlotLabel}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center"
+                                                   FontFamily="{DynamicResource AppMono}"
+                                                   FontWeight="Bold"
+                                                   Foreground="#FFFFFF"
+                                                   FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=15}" />
                                     </Border>
-                                    <TextBlock Grid.Column="2" Classes="hud-detail"
-                                               Text="{Binding HealthText}"
-                                               VerticalAlignment="Center"
+
+                                    <StackPanel Grid.Column="1" Spacing="1" VerticalAlignment="Center">
+                                        <TextBlock Classes="hud-robot-type"
+                                                   Text="{Binding RobotTypeText}"
+                                                   FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=15}" />
+                                        <TextBlock Classes="hud-robot-state"
+                                                   Text="{Binding StateText}"
+                                                   FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=10}" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2"
+                                               Classes="hud-robot-health-value"
+                                               Text="{Binding HealthDisplayText}"
                                                IsVisible="{Binding ShowHealthBar}"
+                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=24}" />
+                                </Grid>
+
+                                <Border x:Name="RobotHealthBarBg"
+                                        Grid.Row="1"
+                                        Classes="hud-robot-health-bg"
+                                        IsVisible="{Binding ShowHealthBar}">
+                                    <Border Classes="hud-robot-health-fill"
+                                            Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                                            HorizontalAlignment="Left">
+                                        <Border.Width>
+                                            <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                                                <Binding Path="HealthPercent" />
+                                                <Binding Path="#RobotHealthBarBg.Bounds.Width" />
+                                            </MultiBinding>
+                                        </Border.Width>
+                                    </Border>
+                                </Border>
+
+                                <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6"
+                                      VerticalAlignment="Bottom">
+                                    <TextBlock Grid.Column="0"
+                                               Classes="hud-robot-meta"
+                                               Text="{Binding AmmoDisplayText}"
+                                               IsVisible="{Binding !IsRadar}"
+                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
+
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
+                                                IsVisible="{Binding !IsRadar}">
+                                        <Border Classes="hud-buff-chip" IsVisible="{Binding HasFirstBuff}">
+                                            <TextBlock Text="{Binding FirstBuffText}"
+                                                       Classes="hud-buff-chip-text"
+                                                       FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=10}" />
+                                        </Border>
+                                        <Border Classes="hud-buff-chip" IsVisible="{Binding HasSecondBuff}">
+                                            <TextBlock Text="{Binding SecondBuffText}"
+                                                       Classes="hud-buff-chip-text"
+                                                       FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=10}" />
+                                        </Border>
+                                        <TextBlock Classes="hud-robot-meta"
+                                                   Text="BUFF --"
+                                                   IsVisible="{Binding !HasFirstBuff}"
+                                                   FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
+                                    </StackPanel>
+
+                                    <Border Grid.Column="2" Classes="hud-radar-chip"
+                                            IsVisible="{Binding IsRadarLocked}">
+                                        <TextBlock Text="雷达锁定"
+                                                   Classes="hud-radar-chip-text" />
+                                    </Border>
+
+                                    <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
+                                               Classes="hud-robot-meta"
+                                               Text="{Binding RadarDetailText}"
+                                               IsVisible="{Binding IsRadar}"
+                                               HorizontalAlignment="Left"
                                                FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
                                 </Grid>
-                                <!-- 第二行：弹药 -->
-                                <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="4">
-                                    <TextBlock Classes="hud-slot"
-                                               Text="{Binding SlotLabel}"
-                                               IsVisible="{Binding !ShowHealthBar}"
-                                               Width="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=18}"
-                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=12}" />
-                                    <TextBlock Classes="hud-detail"
-                                               Text="{Binding AmmoText}"
-                                               VerticalAlignment="Center"
-                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
-                                </Grid>
-                                <!-- 第三行：增益 -->
-                                <TextBlock Grid.Row="2" Classes="hud-detail"
-                                           Text="{Binding BuffText}"
-                                           VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
                             </Grid>
                         </Border>
                     </DataTemplate>

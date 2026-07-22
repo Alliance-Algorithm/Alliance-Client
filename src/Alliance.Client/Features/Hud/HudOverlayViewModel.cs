@@ -23,8 +23,8 @@ public sealed class HudOverlayViewModel : ObservableObject
         _videoStreamStore = videoStreamStore;
         _layoutSettings = layoutSettings;
         _snapshot = telemetryStore.CurrentSnapshot;
-        _allyRobotsViewModel = new RobotStatusBarViewModel("ALLIES", _snapshot.AllyRobots, isEnemy: false);
-        _enemyRobotsViewModel = new RobotStatusBarViewModel("ENEMIES", _snapshot.EnemyRobots, isEnemy: true);
+        _allyRobotsViewModel = new RobotStatusBarViewModel("ALLY ROBOTS", _snapshot.AllyRobots, isEnemy: false);
+        _enemyRobotsViewModel = new RobotStatusBarViewModel("ENEMY ROBOTS", _snapshot.EnemyRobots, isEnemy: true);
         ApplyRobotTextScale();
         _telemetryStore.PropertyChanged += HandleTelemetryChanged;
         _layoutSettings.PropertyChanged += HandleLayoutChanged;

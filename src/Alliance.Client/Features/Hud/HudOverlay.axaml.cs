@@ -49,13 +49,16 @@ public partial class HudOverlay : UserControl
 
     private void ApplyRobotPanelWidth()
     {
-        if (_viewModel is null || _rootLayout.ColumnDefinitions.Count < 2)
+        if (_viewModel is null || _rootLayout.ColumnDefinitions.Count < 3)
         {
             return;
         }
 
-        _rootLayout.ColumnDefinitions[0].Width = new GridLength(6, GridUnitType.Star);
-        _rootLayout.ColumnDefinitions[1].Width = new GridLength(
+        _rootLayout.ColumnDefinitions[0].Width = new GridLength(
+            2 * _viewModel.LayoutSettings.RobotWidthScale,
+            GridUnitType.Star);
+        _rootLayout.ColumnDefinitions[1].Width = new GridLength(6, GridUnitType.Star);
+        _rootLayout.ColumnDefinitions[2].Width = new GridLength(
             2 * _viewModel.LayoutSettings.RobotWidthScale,
             GridUnitType.Star);
     }

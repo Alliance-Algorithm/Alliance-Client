@@ -294,12 +294,15 @@ public sealed class MqttTelemetryService : ITelemetryService
     {
         try
         {
+            var rawTopic = args.ApplicationMessage.Topic;
+            var topic = ResolveTopicName(rawTopic);
             var payload = args.ApplicationMessage.Payload.ToArray();
             _logger.LogDebug(
-                "MQTT message received on topic '{Topic}' ({Bytes} bytes)",
-                args.ApplicationMessage.Topic,
+                "MQTT message received on topic '{Topic}' as '{ResolvedTopic}' ({Bytes} bytes)",
+                rawTopic,
+                topic,
                 payload.Length);
-            switch (args.ApplicationMessage.Topic)
+            switch (topic)
             {
                 case nameof(GameStatus):
                     return RunOnUiThreadAsync(() =>
@@ -330,22 +333,26 @@ public sealed class MqttTelemetryService : ITelemetryService
                         _telemetryStore.ApplyRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload)));
                 case nameof(CustomByteBlock):
                 {
-                    var raw = payload;
+                    var data = CustomByteBlock.Parser.ParseFrom(payload).Data.ToByteArray();
                     _ = Task.Run(() =>
                     {
                         try
                         {
-                            _telemetryStore.ApplyCustomByteBlock(CustomByteBlock.Parser.ParseFrom(raw));
+                            _telemetryStore.ProcessCustomByteBlockImage(data);
                         }
                         catch (Exception ex)
                         {
                             _logger.LogWarning(ex, "CustomByteBlock processing failed");
                         }
                     });
-                    break;
+                    return RunOnUiThreadAsync(() =>
+                        _telemetryStore.ApplyCustomByteBlockData(data));
                 }
                 default:
-                    _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
+                    _logger.LogWarning(
+                        "Ignoring unsupported MQTT topic '{Topic}' resolved as '{ResolvedTopic}'",
+                        rawTopic,
+                        topic);
                     break;
             }
 
@@ -356,6 +363,12 @@ public sealed class MqttTelemetryService : ITelemetryService
             _logger.LogWarning(ex, "Failed to process MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
             return Task.CompletedTask;
         }
+    }
+
+    private static string ResolveTopicName(string topic)
+    {
+        var segments = topic.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return segments.Length == 0 ? topic : segments[^1];
     }
 
     private static Task RunOnUiThreadAsync(Action action)

@@ -8,6 +8,223 @@
     <Setter Property="Padding" Value="14" />
   </Style>
 
+  <!-- 顶部全局状态栏 -->
+  <Style Selector="Border.hud-topbar">
+    <Setter Property="Background" Value="#0D1117E6" />
+    <Setter Property="BorderBrush" Value="#2D4657" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12,8" />
+  </Style>
+
+  <Style Selector="Border.hud-brand-mark">
+    <Setter Property="Width" Value="30" />
+    <Setter Property="Height" Value="30" />
+    <Setter Property="Background" Value="#1D6EEA" />
+    <Setter Property="BorderBrush" Value="#57D7C780" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-brand-title">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="LetterSpacing" Value="1.8" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-brand-subtitle">
+    <Setter Property="FontSize" Value="9" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#5A7080" />
+    <Setter Property="LetterSpacing" Value="2.2" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-app-name">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="15" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-status-text">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="Border.hud-stage-chip">
+    <Setter Property="Background" Value="#123B3A" />
+    <Setter Property="BorderBrush" Value="#57D7C780" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+  </Style>
+
+  <Style Selector="Border.hud-mechanism-chip">
+    <Setter Property="Background" Value="#241A3D99" />
+    <Setter Property="BorderBrush" Value="#7C5CFF66" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,3" />
+    <Setter Property="MaxWidth" Value="240" />
+  </Style>
+
+  <Style Selector="Border.hud-score-blue">
+    <Setter Property="Background" Value="#1D6EEA33" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,2" />
+  </Style>
+
+  <Style Selector="Border.hud-score-red">
+    <Setter Property="Background" Value="#FF4A4A33" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="10,2" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-score-text-blue">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#8FC5FF" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-score-text-red">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FF9C9C" />
+  </Style>
+
+  <!-- 中央视频容器 -->
+  <Style Selector="Border.hud-video-frame">
+    <Setter Property="Background" Value="#050A0F" />
+    <Setter Property="BorderBrush" Value="#2D4657" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-video-watermark">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#57D7C766" />
+    <Setter Property="LetterSpacing" Value="1.6" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-header">
+    <Setter Property="Background" Value="#1A2A3340" />
+    <Setter Property="BorderBrush" Value="#2D465760" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="4,3" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-side-header">
+    <Setter Property="Background" Value="#1A2A3340" />
+    <Setter Property="BorderBrush" Value="#2D465760" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="Padding" Value="10,8" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-side-title">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="LetterSpacing" Value="1.4" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-side-stat">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-card">
+    <Setter Property="Background" Value="#0D111799" />
+    <Setter Property="BorderBrush" Value="#2D465760" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="10,8" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-slot-badge">
+    <Setter Property="Width" Value="32" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="CornerRadius" Value="6" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-type">
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-state">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#5A7080" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-health-value">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-health-bg">
+    <Setter Property="Background" Value="#1A2A33" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="9" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-health-fill">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="9" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-meta">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="Border.hud-buff-chip">
+    <Setter Property="Background" Value="#57D7C71A" />
+    <Setter Property="BorderBrush" Value="#57D7C766" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Padding" Value="5,2" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-buff-chip-text">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style Selector="Border.hud-radar-chip">
+    <Setter Property="Background" Value="#FF4A4A1A" />
+    <Setter Property="BorderBrush" Value="#FF4A4A80" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="5" />
+    <Setter Property="Padding" Value="5,2" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-radar-chip-text">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#FF9C9C" />
+  </Style>
+
   <!-- 强调面板（底部当前机器人） -->
   <Style Selector="Border.hud-panel-accent">
     <Setter Property="Background" Value="#0D1117E6" />
@@ -185,6 +402,15 @@
     <Setter Property="FontSize" Value="10" />
     <Setter Property="Foreground" Value="{DynamicResource MutedTextBrush}" />
     <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- 建筑血量条：Outpost/Base 分行展示 -->
+  <Style Selector="Border.hud-structure-bar-bg">
+    <Setter Property="Background" Value="#1A2A33" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="14" />
+    <Setter Property="MinWidth" Value="120" />
+    <Setter Property="ClipToBounds" Value="True" />
   </Style>
 
   <!-- 累计总伤数值 -->

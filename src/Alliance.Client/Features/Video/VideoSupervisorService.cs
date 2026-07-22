@@ -14,6 +14,8 @@ namespace Alliance.Client.Features.Video;
 
 public sealed class VideoSupervisorService : IVideoSupervisorService
 {
+    private const int MaxUiPresentFps = 30;
+
     private readonly AppSettings _settings;
     private readonly VideoStreamStore _store;
     private readonly ILogger<VideoSupervisorService> _logger;
@@ -148,6 +150,9 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                 try
                 {
                     lastFrameVersion = 0;
+                    var lastPresentedAt = DateTimeOffset.MinValue;
+                    var uiPresentFps = Math.Clamp(_settings.Video.PresentFps, 1, MaxUiPresentFps);
+                    var minUiFrameInterval = TimeSpan.FromMilliseconds(1000d / uiPresentFps);
                     while (!cancellationToken.IsCancellationRequested && !process.HasExited)
                     {
                         VideoStatusMessage? status;
@@ -161,17 +166,14 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                             && version != Interlocked.Read(ref lastFrameVersion))
                         {
                             Interlocked.Exchange(ref lastFrameVersion, version);
-                            await Dispatcher.UIThread.InvokeAsync(() =>
+                            var now = DateTimeOffset.UtcNow;
+                            if (now - lastPresentedAt >= minUiFrameInterval)
                             {
-                                _store.UpdateFrame(frame.Span);
-                                _store.SetStatus(
-                                    ConnectionState.Ready,
-                                    "VIDEO READY",
-                                    _store.Snapshot.MetricsText,
-                                    _store.Snapshot.LastPacketAt,
-                                    DateTimeOffset.UtcNow,
-                                    version);
-                            });
+                                lastPresentedAt = now;
+                                await Dispatcher.UIThread.InvokeAsync(
+                                    () => _store.UpdateFrame(frame.Span),
+                                    DispatcherPriority.Background);
+                            }
                         }
 
                         var silence = TimeSpan.FromTicks(DateTimeOffset.UtcNow.Ticks - Interlocked.Read(ref lastHeartbeatAtTicks));
@@ -180,12 +182,15 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                             throw new TimeoutException("Video worker heartbeat timed out.");
                         }
 
-                        if (_store.Snapshot.LastFrameAt is { } lastFrameAt)
+                        if (lastPresentedAt != DateTimeOffset.MinValue)
                         {
-                            var frameAgeMs = (DateTimeOffset.UtcNow - lastFrameAt).TotalMilliseconds;
+                            var frameAgeMs = (DateTimeOffset.UtcNow - lastPresentedAt).TotalMilliseconds;
                             if (frameAgeMs > _settings.Video.ClearFrameAfterMs)
                             {
-                                await Dispatcher.UIThread.InvokeAsync(() => _store.ClearFrame());
+                                await Dispatcher.UIThread.InvokeAsync(
+                                    () => _store.ClearFrame(),
+                                    DispatcherPriority.Background);
+                                lastPresentedAt = DateTimeOffset.MinValue;
                             }
                         }
 

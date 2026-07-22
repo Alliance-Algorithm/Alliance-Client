@@ -1,38 +1,11 @@
 <!--
 HudOverlay - HUD主控件（整体布局容器）
 
-整体布局结构 (8x8 Grid, 16:9比例)：
-┌──────────────────────────────┬──────────┬──────────┐
-│                              │ ENEMY    │ ALLY     │  ← Row 0-5
-│     Video Feed (6x6)        │ Robots   │ Robots   │     Col 6-7
-│                              │ (1x6)    │ (1x6)    │
-│   ┌────────────────────┐     │          │          │
-│   │Ally│Timer│ Enemy  │     │          │          │
-│   └────────────────────┘     │          │          │
-│                              │          │          │
-├──────────┬──────────┬────────┼──────────┼──────────┤  ← Row 6-7
-│ Map      │ Current  │Reserved│ Event    │          │
-│ (2x2)    │ Robot    │ (2x2)  │ (2x2)    │          │
-│          │ (2x2)    │        │          │          │
-└──────────┴──────────┴────────┴──────────┴──────────┘
-Col 0-1    Col 2-3   Col 4-5  Col 6-7
+整体布局向视觉稿靠拢：
+中上：我方机器人 | 顶部状态条 + 16:9 视频图传 | 敌方机器人
+底部：当前机器人 | RESERVED | MAP | EVENTS
 
-子控件说明：
-1. TeamPanel x2: 己方/敌方比赛信息（叠加在视频画面上）
-2. MatchTimer: 比赛倒计时（叠加在视频画面上）
-3. RobotStatusBar x2: 己方/敌方机器人列表（右侧2列）
-4. CurrentRobotPanel: 当前操控机器人的详细状态
-5. MapPanel: 地图面板（预留）
-6. EventPanel: 赛场事件消息面板（预留）
-
-数据来源：
-- DataContext 绑定到 HudOverlayViewModel
-- Snapshot 属性提供所有遥测数据快照
-
-特点：
-- IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层
-- Margin="24": 整体边距
-- 固定16:9比例，8x8等分网格
+IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主窗口按钮。
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -40,67 +13,90 @@ Col 0-1    Col 2-3   Col 4-5  Col 6-7
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:Alliance.Client.Features.Hud"
              xmlns:video="using:Alliance.Client.Features.Video"
+             xmlns:controls="using:Alliance.Client.Shared.Controls"
              x:Class="Alliance.Client.Features.Hud.HudOverlay"
              x:DataType="vm:HudOverlayViewModel"
              IsHitTestVisible="False"
              mc:Ignorable="d">
   <Grid x:Name="RootLayout"
-        RowDefinitions="6*,2*"
-        ColumnDefinitions="6*,2*"
-        RowSpacing="4" ColumnSpacing="4" Margin="24">
+        RowDefinitions="*,220"
+        ColumnDefinitions="2*,6*,2*"
+        RowSpacing="4" ColumnSpacing="4" Margin="16">
 
-    <!-- ===== 左上 6x6 区域：视频画面 + 叠加比赛信息 ===== -->
-    <Border Grid.Row="0" Grid.Column="0"
-            Classes="hud-region"
-            Background="#0D111780" CornerRadius="8">
-      <Grid>
-        <!-- 底层：视频画面区域（预留） -->
-        <Border Classes="hud-region"
-                Background="#0A101540" CornerRadius="4" Margin="4">
+    <!-- ===== 中上：我方机器人 / 中央状态条 + 16:9 视频图传 / 敌方机器人 ===== -->
+    <vm:RobotStatusBar Grid.Row="0" Grid.Column="0"
+                       DataContext="{Binding AllyRobotsViewModel}" />
+
+    <Grid Grid.Row="0" Grid.Column="1"
+          RowDefinitions="56,*"
+          RowSpacing="4">
+      <Border Grid.Row="0" Classes="hud-topbar">
+        <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="14">
+          <TextBlock Classes="hud-app-name"
+                     Text="alliance-client"
+                     VerticalAlignment="Center" />
+
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center">
+            <Border Classes="hud-stage-chip">
+              <TextBlock Text="{Binding Snapshot.StageText}" FontSize="11" FontWeight="SemiBold"
+                         Foreground="{DynamicResource AccentBrush}"
+                         TextTrimming="CharacterEllipsis" />
+            </Border>
+            <TextBlock Classes="hud-countdown" Text="{Binding Snapshot.MatchTimeText}" />
+          </StackPanel>
+
+          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12"
+                      Margin="0,0,142,0"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center">
+            <TextBlock Classes="hud-status-text" Text="{Binding Snapshot.MqttStatusText}" />
+            <TextBlock Classes="hud-status-text" Text="{Binding Snapshot.LastUpdateCompactText}" />
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <controls:AspectRatioDecorator Grid.Row="1"
+                                     AspectRatio="1.7777777777777777"
+                                     VerticalAlignment="Top"
+                                     HorizontalAlignment="Stretch">
+        <Border Classes="hud-video-frame">
           <Grid>
-            <video:VideoFeedControl Store="{Binding Video}" />
+            <video:VideoFeedControl Store="{Binding Video}"
+                                    HorizontalAlignment="Stretch"
+                                    VerticalAlignment="Stretch" />
+
+            <TextBlock Classes="hud-video-watermark"
+                       Text="VIDEO FEED"
+                       IsVisible="{Binding Video.IsWaitingForFrame}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center" />
+
+            <Grid VerticalAlignment="Top" Margin="12"
+                  ColumnDefinitions="*,*" ColumnSpacing="8">
+              <vm:TeamPanel Grid.Column="0"
+                            HorizontalAlignment="Left"
+                            DataContext="{Binding Snapshot.AllyTeam}" />
+              <vm:TeamPanel Grid.Column="1"
+                            HorizontalAlignment="Right"
+                            DataContext="{Binding Snapshot.EnemyTeam}" />
+            </Grid>
+
             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Spacing="2">
               <TextBlock Classes="hud-caption" Text="{Binding Video.Snapshot.StatusText}" HorizontalAlignment="Right" />
               <TextBlock Classes="hud-detail" Text="{Binding Video.Snapshot.MetricsText}" HorizontalAlignment="Right" />
             </StackPanel>
           </Grid>
         </Border>
-
-        <!-- 顶层：比赛信息面板（叠加在画面上方，占视频区域50%宽度） -->
-        <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="1*,2*,1*"
-              RowSpacing="0" ColumnSpacing="0" Margin="8">
-          <!-- 顶部中央：比赛信息面板（直接在50%列中） -->
-          <Grid Grid.Row="0" Grid.Column="1"
-                ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
-            <!-- 己方比赛信息 -->
-            <vm:TeamPanel Grid.Column="0"
-                          DataContext="{Binding Snapshot.AllyTeam}" />
-
-            <!-- 中间：倒计时 -->
-            <vm:MatchTimer Grid.Column="1"
-                           DataContext="{Binding Snapshot}" />
-
-            <!-- 敌方比赛信息 -->
-            <vm:TeamPanel Grid.Column="2"
-                          DataContext="{Binding Snapshot.EnemyTeam}" />
-          </Grid>
-        </Grid>
-      </Grid>
-    </Border>
-
-    <!-- ===== 右侧 2列 x 6行：机器人状态栏（己方左、敌方右） ===== -->
-    <Grid Grid.Row="0" Grid.Column="1"
-          ColumnDefinitions="*,*" ColumnSpacing="4">
-      <!-- 己方机器人状态栏 (Col 6) -->
-      <vm:RobotStatusBar Grid.Column="0"
-                         DataContext="{Binding AllyRobotsViewModel}" />
-      <!-- 敌方机器人状态栏 (Col 7) -->
-      <vm:RobotStatusBar Grid.Column="1"
-                         DataContext="{Binding EnemyRobotsViewModel}" />
+      </controls:AspectRatioDecorator>
     </Grid>
 
-    <!-- ===== 底部 Row=1：地图 + 当前机器人 + 预留 + 事件 ===== -->
-    <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+    <vm:RobotStatusBar Grid.Row="0" Grid.Column="2"
+                       DataContext="{Binding EnemyRobotsViewModel}" />
+
+    <!-- ===== 底部：当前机器人 / 预留 / 地图 / 事件 ===== -->
+    <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
           RowDefinitions="*" ColumnDefinitions="*,*,*,*"
           ColumnSpacing="4">
 
