@@ -26,13 +26,25 @@ public sealed class SharedFrameReader : IDisposable
         version = 0;
         timestampUnixMs = 0;
 
+        if (!TryGetLatestFrameInfo(out var info))
+        {
+            return false;
+        }
+
+        return TryReadFrame(info, out frame, out version, out timestampUnixMs);
+    }
+
+    internal bool TryGetLatestFrameInfo(out SharedFrameInfo info)
+    {
+        info = default;
+
         SharedFrameSlotHeader? latest = null;
         var latestSlotIndex = -1;
         for (var slotIndex = 0; slotIndex < VideoConstants.SharedBufferSlots; slotIndex++)
         {
             _accessor.ReadArray(_layout.GetSlotOffset(slotIndex), _slotHeaderBuffer, 0, _slotHeaderBuffer.Length);
             var header = SharedFrameLayout.ReadSlotHeader(_slotHeaderBuffer);
-            if (!header.Stable || header.FrameBytes <= 0 || header.FrameBytes > _layout.FrameBytes)
+            if (!IsReadableHeader(header))
             {
                 continue;
             }
@@ -49,10 +61,38 @@ public sealed class SharedFrameReader : IDisposable
             return false;
         }
 
-        _accessor.ReadArray(_layout.GetFrameDataOffset(latestSlotIndex), _frameBuffer, 0, latest.Value.FrameBytes);
-        _accessor.ReadArray(_layout.GetSlotOffset(latestSlotIndex), _slotHeaderBuffer, 0, _slotHeaderBuffer.Length);
+        info = new SharedFrameInfo(
+            latestSlotIndex,
+            latest.Value.Version,
+            latest.Value.FrameNumber,
+            latest.Value.FrameBytes,
+            latest.Value.TimestampUnixMs);
+        return true;
+    }
+
+    internal bool TryReadFrame(
+        SharedFrameInfo info,
+        out ReadOnlyMemory<byte> frame,
+        out long version,
+        out long timestampUnixMs)
+    {
+        frame = default;
+        version = 0;
+        timestampUnixMs = 0;
+
+        if (info.SlotIndex < 0 || info.SlotIndex >= VideoConstants.SharedBufferSlots ||
+            info.FrameBytes <= 0 || info.FrameBytes > _layout.FrameBytes)
+        {
+            return false;
+        }
+
+        _accessor.ReadArray(_layout.GetFrameDataOffset(info.SlotIndex), _frameBuffer, 0, info.FrameBytes);
+        _accessor.ReadArray(_layout.GetSlotOffset(info.SlotIndex), _slotHeaderBuffer, 0, _slotHeaderBuffer.Length);
         var confirm = SharedFrameLayout.ReadSlotHeader(_slotHeaderBuffer);
-        if (!confirm.Stable || confirm.Version != latest.Value.Version || confirm.FrameNumber != latest.Value.FrameNumber)
+        if (!IsReadableHeader(confirm) ||
+            confirm.Version != info.Version ||
+            confirm.FrameNumber != info.FrameNumber ||
+            confirm.FrameBytes != info.FrameBytes)
         {
             return false;
         }
@@ -63,9 +103,27 @@ public sealed class SharedFrameReader : IDisposable
         return true;
     }
 
+    private bool IsReadableHeader(SharedFrameSlotHeader header)
+    {
+        return header.Stable &&
+               header.Width == _layout.Width &&
+               header.Height == _layout.Height &&
+               header.Stride == _layout.Stride &&
+               header.PixelFormat == VideoConstants.PixelFormatBgra32 &&
+               header.FrameBytes > 0 &&
+               header.FrameBytes <= _layout.FrameBytes;
+    }
+
     public void Dispose()
     {
         _accessor.Dispose();
         _memoryMappedFile.Dispose();
     }
 }
+
+internal readonly record struct SharedFrameInfo(
+    int SlotIndex,
+    long Version,
+    long FrameNumber,
+    int FrameBytes,
+    long TimestampUnixMs);

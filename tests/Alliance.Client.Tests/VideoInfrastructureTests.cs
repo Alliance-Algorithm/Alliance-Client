@@ -38,6 +38,63 @@ public sealed class VideoInfrastructureTests
     }
 
     [Fact]
+    public void SharedFrameReader_Reads_Frame_Info_Before_Frame_Data()
+    {
+        var tempDirectory = CreateTempDirectory();
+        var sharedMemoryPath = Path.Combine(tempDirectory, "frame.mmap");
+        var layout = new SharedFrameLayout(2, 2);
+        var frameBytes = new byte[layout.FrameBytes];
+        for (var index = 0; index < frameBytes.Length; index++)
+        {
+            frameBytes[index] = (byte)index;
+        }
+
+        try
+        {
+            using (var stream = new FileStream(sharedMemoryPath, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite))
+            {
+                stream.SetLength(layout.TotalBytes);
+
+                var sharedHeader = new byte[VideoConstants.SharedHeaderSize];
+                SharedFrameLayout.WriteSharedHeader(sharedHeader, layout.Width, layout.Height, layout.Stride);
+                stream.Position = 0;
+                stream.Write(sharedHeader);
+
+                var slotHeader = new byte[VideoConstants.FrameHeaderSize];
+                SharedFrameLayout.WriteSlotHeader(
+                    slotHeader,
+                    version: 2,
+                    frameNumber: 1,
+                    width: layout.Width,
+                    height: layout.Height,
+                    stride: layout.Stride,
+                    frameBytes: layout.FrameBytes,
+                    timestampUnixMs: 1234,
+                    stable: true);
+                stream.Position = layout.GetSlotOffset(0);
+                stream.Write(slotHeader);
+                stream.Position = layout.GetFrameDataOffset(0);
+                stream.Write(frameBytes);
+            }
+
+            using var reader = new SharedFrameReader(sharedMemoryPath, layout.Width, layout.Height);
+
+            Assert.True(reader.TryGetLatestFrameInfo(out var info));
+            Assert.Equal(2, info.Version);
+            Assert.Equal(1, info.FrameNumber);
+            Assert.Equal(layout.FrameBytes, info.FrameBytes);
+            Assert.True(reader.TryReadFrame(info, out var frame, out var version, out var timestampUnixMs));
+            Assert.Equal(2, version);
+            Assert.Equal(1234, timestampUnixMs);
+            Assert.Equal(frameBytes, frame.ToArray());
+        }
+        finally
+        {
+            Directory.Delete(tempDirectory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void VideoFeedControl_Overrides_Attach_And_Detach_Handlers()
     {
         var type = typeof(VideoFeedControl);

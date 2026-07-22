@@ -285,6 +285,97 @@ public sealed class TelemetryMappingTests
         Assert.Equal("Telemetry stale", store.CurrentSnapshot.WarningText);
     }
 
+    [Fact]
+    public void TelemetryStore_ApplyBatch_Publishes_Snapshot_Once()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        var publishes = 0;
+        store.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TelemetryStore.CurrentSnapshot))
+            {
+                publishes++;
+            }
+        };
+
+        store.ApplyBatch(new TelemetryUpdateBatch
+        {
+            GameStatus = new GameStatus { StageCountdownSec = 42 },
+            GlobalUnitStatus = new GlobalUnitStatus
+            {
+                BaseHealth = 1500,
+                RobotHealth = { 100, 200, 300, 400, 700, 101, 202, 303, 404, 707 }
+            },
+            RobotDynamicStatus = new RobotDynamicStatus { CurrentHealth = 88 }
+        });
+
+        Assert.Equal(1, publishes);
+        Assert.Equal("00:42", store.CurrentSnapshot.MatchTimeText);
+        Assert.Equal("100", store.CurrentSnapshot.AllyRobots[0].HealthText);
+    }
+
+    [Fact]
+    public void TelemetryStore_ApplyBatch_Preserves_Event_And_Buff_Order()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+
+        store.ApplyBatch(new TelemetryUpdateBatch
+        {
+            Events =
+            [
+                new Event { EventId = 1, Param = "1,2" },
+                new Event { EventId = 9, Param = "2,5" }
+            ],
+            Buffs =
+            [
+                new Buff
+                {
+                    RobotId = 1,
+                    BuffType = 1,
+                    BuffLevel = 50,
+                    BuffMaxTime = 20,
+                    BuffLeftTime = 20
+                },
+                new Buff
+                {
+                    RobotId = 1,
+                    BuffType = 1,
+                    BuffLevel = 50,
+                    BuffMaxTime = 20,
+                    BuffLeftTime = 0
+                }
+            ]
+        });
+
+        Assert.Equal("飞镖命中 方2 目标5", store.CurrentSnapshot.LatestEvent?.SummaryText);
+        Assert.Empty(store.CurrentSnapshot.ActiveBuffs);
+        Assert.Equal("BUFF --", store.CurrentSnapshot.AllyRobots[0].BuffText);
+    }
+
+    [Fact]
+    public void TelemetryStore_CustomByteBlockData_Works_When_Diagnostics_Disabled()
+    {
+        var settings = CreateSettings();
+        settings.EnableDebugMode = false;
+        var store = new TelemetryStore(settings, null!);
+        var payload = new byte[] { 0x01, 0x02, 0x03 };
+        var snapshot = store.CurrentSnapshot;
+        var publishes = 0;
+        store.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(TelemetryStore.CurrentSnapshot))
+            {
+                publishes++;
+            }
+        };
+
+        store.ApplyCustomByteBlockData(payload);
+
+        Assert.Equal(payload, store.CustomByteBlockData);
+        Assert.Same(snapshot, store.CurrentSnapshot);
+        Assert.Equal(0, publishes);
+    }
+
     private static AppSettings CreateSettings(string clientId = "1")
     {
         return new AppSettings

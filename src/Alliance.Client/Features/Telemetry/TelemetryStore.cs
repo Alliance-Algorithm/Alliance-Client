@@ -205,16 +205,7 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             var receivedAt = DateTimeOffset.UtcNow;
-            var count = Math.Min(status.MechanismId.Count, status.MechanismTimeSec.Count);
-            _activeMechanisms = new List<MechanismState>(count);
-            for (var index = 0; index < count; index++)
-            {
-                _activeMechanisms.Add(new MechanismState(
-                    (int)status.MechanismId[index],
-                    status.MechanismTimeSec[index],
-                    receivedAt));
-            }
-
+            ApplyGlobalSpecialMechanismLocked(status, receivedAt);
             MarkTelemetryReceivedLocked(receivedAt);
         }
     }
@@ -260,22 +251,7 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             var receivedAt = DateTimeOffset.UtcNow;
-            var key = new BuffKey((int)status.RobotId, (int)status.BuffType);
-            if (status.BuffLeftTime == 0)
-            {
-                _activeBuffs.Remove(key);
-            }
-            else
-            {
-                _activeBuffs[key] = new BuffState(
-                    (int)status.RobotId,
-                    (int)status.BuffType,
-                    status.BuffLevel,
-                    (int)status.BuffMaxTime,
-                    (int)status.BuffLeftTime,
-                    receivedAt);
-            }
-
+            ApplyBuffLocked(status, receivedAt);
             MarkTelemetryReceivedLocked(receivedAt);
         }
     }
@@ -285,18 +261,7 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             var receivedAt = DateTimeOffset.UtcNow;
-            _radarSlots = new List<RadarSlotState>(status.RadarSingleRobotInfo.Count);
-            for (var index = 0; index < status.RadarSingleRobotInfo.Count && index < 12; index++)
-            {
-                var info = status.RadarSingleRobotInfo[index];
-                _radarSlots.Add(new RadarSlotState(
-                    index,
-                    (int)info.TargetPosX,
-                    (int)info.TargetPosY,
-                    (int)info.IsHighLight,
-                    receivedAt));
-            }
-
+            ApplyRadarInfoToClientLocked(status, receivedAt);
             MarkTelemetryReceivedLocked(receivedAt);
         }
     }
@@ -320,10 +285,123 @@ public sealed class TelemetryStore : ObservableObject
         lock (_gate)
         {
             _customByteBlockData = storedData;
-            MarkTelemetryReceivedLocked(receivedAt);
+            _lastTelemetryAt = receivedAt;
         }
 
         OnPropertyChanged(nameof(CustomByteBlockData));
+    }
+
+    internal void ApplyBatch(TelemetryUpdateBatch batch)
+    {
+        if (!batch.HasUpdates)
+        {
+            return;
+        }
+
+        lock (_gate)
+        {
+            if (batch.GameStatus is not null)
+            {
+                _gameStatus = batch.GameStatus.Clone();
+            }
+
+            if (batch.GlobalUnitStatus is not null)
+            {
+                _globalUnitStatus = batch.GlobalUnitStatus.Clone();
+            }
+
+            if (batch.GlobalLogisticsStatus is not null)
+            {
+                _globalLogisticsStatus = batch.GlobalLogisticsStatus.Clone();
+            }
+
+            if (batch.GlobalSpecialMechanism is not null)
+            {
+                ApplyGlobalSpecialMechanismLocked(batch.GlobalSpecialMechanism, batch.ReceivedAt);
+            }
+
+            foreach (var status in batch.Events)
+            {
+                _latestEvent = new EventState(
+                    status.EventId,
+                    status.Param,
+                    BuildEventSummary(status.EventId, status.Param));
+            }
+
+            if (batch.RobotStaticStatus is not null)
+            {
+                _robotStaticStatus = batch.RobotStaticStatus.Clone();
+
+                if (batch.RobotStaticStatus.RobotId > 0)
+                {
+                    _isOwnTeamBlue = batch.RobotStaticStatus.RobotId >= 100;
+                }
+            }
+
+            if (batch.RobotDynamicStatus is not null)
+            {
+                _robotDynamicStatus = batch.RobotDynamicStatus.Clone();
+            }
+
+            foreach (var status in batch.Buffs)
+            {
+                ApplyBuffLocked(status, batch.ReceivedAt);
+            }
+
+            if (batch.RadarInfoToClient is not null)
+            {
+                ApplyRadarInfoToClientLocked(batch.RadarInfoToClient, batch.ReceivedAt);
+            }
+
+            MarkTelemetryReceivedLocked(batch.ReceivedAt);
+        }
+    }
+
+    private void ApplyGlobalSpecialMechanismLocked(GlobalSpecialMechanism status, DateTimeOffset receivedAt)
+    {
+        var count = Math.Min(status.MechanismId.Count, status.MechanismTimeSec.Count);
+        _activeMechanisms = new List<MechanismState>(count);
+        for (var index = 0; index < count; index++)
+        {
+            _activeMechanisms.Add(new MechanismState(
+                (int)status.MechanismId[index],
+                status.MechanismTimeSec[index],
+                receivedAt));
+        }
+    }
+
+    private void ApplyBuffLocked(Buff status, DateTimeOffset receivedAt)
+    {
+        var key = new BuffKey((int)status.RobotId, (int)status.BuffType);
+        if (status.BuffLeftTime == 0)
+        {
+            _activeBuffs.Remove(key);
+        }
+        else
+        {
+            _activeBuffs[key] = new BuffState(
+                (int)status.RobotId,
+                (int)status.BuffType,
+                status.BuffLevel,
+                (int)status.BuffMaxTime,
+                (int)status.BuffLeftTime,
+                receivedAt);
+        }
+    }
+
+    private void ApplyRadarInfoToClientLocked(RadarInfoToClient status, DateTimeOffset receivedAt)
+    {
+        _radarSlots = new List<RadarSlotState>(status.RadarSingleRobotInfo.Count);
+        for (var index = 0; index < status.RadarSingleRobotInfo.Count && index < 12; index++)
+        {
+            var info = status.RadarSingleRobotInfo[index];
+            _radarSlots.Add(new RadarSlotState(
+                index,
+                (int)info.TargetPosX,
+                (int)info.TargetPosY,
+                (int)info.IsHighLight,
+                receivedAt));
+        }
     }
 
     public void RefreshStaleness(DateTimeOffset now)

@@ -31,12 +31,25 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
           RowDefinitions="56,*"
           RowSpacing="4">
       <Border Grid.Row="0" Classes="hud-topbar">
-        <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="14">
-          <TextBlock Classes="hud-app-name"
-                     Text="alliance-client"
-                     VerticalAlignment="Center" />
+        <Grid>
+          <Grid ColumnDefinitions="Auto,220,*" ColumnSpacing="14">
+            <TextBlock Classes="hud-app-name"
+                       Text="alliance-client"
+                       VerticalAlignment="Center" />
 
-          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8"
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center">
+              <TextBlock Classes="hud-status-text"
+                         Text="{Binding Snapshot.MqttStatusText}"
+                         MaxWidth="96" />
+              <TextBlock Classes="hud-status-text"
+                         Text="{Binding Snapshot.LastUpdateCompactText}"
+                         MaxWidth="112" />
+            </StackPanel>
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Spacing="8"
                       HorizontalAlignment="Center"
                       VerticalAlignment="Center">
             <Border Classes="hud-stage-chip">
@@ -45,14 +58,6 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
                          TextTrimming="CharacterEllipsis" />
             </Border>
             <TextBlock Classes="hud-countdown" Text="{Binding Snapshot.MatchTimeText}" />
-          </StackPanel>
-
-          <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="12"
-                      Margin="0,0,142,0"
-                      HorizontalAlignment="Right"
-                      VerticalAlignment="Center">
-            <TextBlock Classes="hud-status-text" Text="{Binding Snapshot.MqttStatusText}" />
-            <TextBlock Classes="hud-status-text" Text="{Binding Snapshot.LastUpdateCompactText}" />
           </StackPanel>
         </Grid>
       </Border>
@@ -75,10 +80,12 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
 
             <Grid VerticalAlignment="Top" Margin="12"
                   ColumnDefinitions="*,*" ColumnSpacing="8">
-              <vm:TeamPanel Grid.Column="0"
+              <vm:TeamPanel x:Name="AllyTeamPanel"
+                            Grid.Column="0"
                             HorizontalAlignment="Left"
                             DataContext="{Binding Snapshot.AllyTeam}" />
-              <vm:TeamPanel Grid.Column="1"
+              <vm:TeamPanel x:Name="EnemyTeamPanel"
+                            Grid.Column="1"
                             HorizontalAlignment="Right"
                             DataContext="{Binding Snapshot.EnemyTeam}" />
             </Grid>

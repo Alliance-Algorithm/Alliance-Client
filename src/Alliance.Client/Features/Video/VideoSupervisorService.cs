@@ -151,6 +151,8 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                 {
                     lastFrameVersion = 0;
                     var lastPresentedAt = DateTimeOffset.MinValue;
+                    DateTimeOffset? lastSourceFrameAt = null;
+                    DateTimeOffset? lastClearedFrameAt = null;
                     var uiPresentFps = Math.Clamp(_settings.Video.PresentFps, 1, MaxUiPresentFps);
                     var minUiFrameInterval = TimeSpan.FromMilliseconds(1000d / uiPresentFps);
                     while (!cancellationToken.IsCancellationRequested && !process.HasExited)
@@ -159,20 +161,41 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                         lock (statusLock) { status = latestStatus; latestStatus = null; }
                         if (status is not null)
                         {
+                            if (status.LastFrameAt is not null)
+                            {
+                                lastSourceFrameAt = status.LastFrameAt;
+                            }
+
                             await ApplyWorkerStatusAsync(status, Interlocked.Read(ref lastFrameVersion));
                         }
 
-                        if (sharedReader.TryReadLatestFrame(out var frame, out var version, out _)
-                            && version != Interlocked.Read(ref lastFrameVersion))
+                        if (sharedReader.TryGetLatestFrameInfo(out var frameInfo))
                         {
-                            Interlocked.Exchange(ref lastFrameVersion, version);
-                            var now = DateTimeOffset.UtcNow;
-                            if (now - lastPresentedAt >= minUiFrameInterval)
+                            if (frameInfo.TimestampUnixMs > 0)
                             {
-                                lastPresentedAt = now;
-                                await Dispatcher.UIThread.InvokeAsync(
-                                    () => _store.UpdateFrame(frame.Span),
-                                    DispatcherPriority.Background);
+                                lastSourceFrameAt = DateTimeOffset.FromUnixTimeMilliseconds(frameInfo.TimestampUnixMs);
+                            }
+
+                            if (frameInfo.Version != Interlocked.Read(ref lastFrameVersion))
+                            {
+                                var now = DateTimeOffset.UtcNow;
+                                if (now - lastPresentedAt >= minUiFrameInterval)
+                                {
+                                    if (sharedReader.TryReadFrame(frameInfo, out var frame, out var version, out _))
+                                    {
+                                        Interlocked.Exchange(ref lastFrameVersion, version);
+                                        lastPresentedAt = now;
+                                        lastClearedFrameAt = null;
+                                        await InvokeUiAsync(
+                                            () => _store.UpdateFrame(frame.Span),
+                                            "present-frame",
+                                            DispatcherPriority.Render);
+                                    }
+                                }
+                                else
+                                {
+                                    Interlocked.Exchange(ref lastFrameVersion, frameInfo.Version);
+                                }
                             }
                         }
 
@@ -182,14 +205,17 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                             throw new TimeoutException("Video worker heartbeat timed out.");
                         }
 
-                        if (lastPresentedAt != DateTimeOffset.MinValue)
+                        if (lastSourceFrameAt is { } sourceFrameAt)
                         {
-                            var frameAgeMs = (DateTimeOffset.UtcNow - lastPresentedAt).TotalMilliseconds;
-                            if (frameAgeMs > _settings.Video.ClearFrameAfterMs)
+                            var frameAgeMs = (DateTimeOffset.UtcNow - sourceFrameAt).TotalMilliseconds;
+                            if (frameAgeMs > _settings.Video.ClearFrameAfterMs &&
+                                lastClearedFrameAt != sourceFrameAt)
                             {
-                                await Dispatcher.UIThread.InvokeAsync(
+                                await InvokeUiAsync(
                                     () => _store.ClearFrame(),
+                                    "clear-frame",
                                     DispatcherPriority.Background);
+                                lastClearedFrameAt = sourceFrameAt;
                                 lastPresentedAt = DateTimeOffset.MinValue;
                             }
                         }
@@ -210,11 +236,11 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
             catch (Exception ex)
             {
                 _logger.LogWarning(ex, "Video supervisor loop failed; worker will restart.");
-                await Dispatcher.UIThread.InvokeAsync(() =>
+                await InvokeUiAsync(() =>
                 {
                     _store.SetStatus(ConnectionState.NotConnected, "VIDEO RESTARTING", _store.Snapshot.MetricsText, null, null, _store.Snapshot.FrameVersion);
                     _store.ClearFrame();
-                });
+                }, "restart-status");
             }
             finally
             {
@@ -422,8 +448,37 @@ public sealed class VideoSupervisorService : IVideoSupervisorService
                 message.LastFrameAt?.ToLocalTime().ToString("HH:mm:ss.fff") ?? "-");
         }
 
-        await Dispatcher.UIThread.InvokeAsync(() =>
-            _store.SetStatus(state, statusText, metricsText, message.LastPacketAt, message.LastFrameAt, frameVersion));
+        await InvokeUiAsync(
+            () => _store.SetStatus(state, statusText, metricsText, message.LastPacketAt, message.LastFrameAt, frameVersion),
+            "worker-status");
+    }
+
+    private Task InvokeUiAsync(Action action, string operationName)
+    {
+        return InvokeUiCoreAsync(action, operationName, priority: null);
+    }
+
+    private Task InvokeUiAsync(Action action, string operationName, DispatcherPriority priority)
+    {
+        return InvokeUiCoreAsync(action, operationName, priority);
+    }
+
+    private async Task InvokeUiCoreAsync(Action action, string operationName, DispatcherPriority? priority)
+    {
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+            return;
+        }
+
+        if (priority.HasValue)
+        {
+            await Dispatcher.UIThread.InvokeAsync(action, priority.Value);
+        }
+        else
+        {
+            await Dispatcher.UIThread.InvokeAsync(action);
+        }
     }
 
     private async Task DrainStreamAsync(StreamReader reader, bool isError, CancellationToken cancellationToken)

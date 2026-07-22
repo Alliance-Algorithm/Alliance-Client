@@ -177,6 +177,20 @@
                           Command="{Binding IncreaseRobotWidthCommand}" />
                 </Grid>
 
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Match Info Background" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <TextBlock Grid.Column="1" Text="{Binding MatchInfoPanelBackgroundOpacityText}"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold" />
+                  <Button Grid.Column="2" Content="−" Classes="settings-step-btn"
+                          Command="{Binding DecreaseMatchInfoPanelBackgroundOpacityCommand}" />
+                  <Button Grid.Column="3" Content="+" Classes="settings-step-btn"
+                          Command="{Binding IncreaseMatchInfoPanelBackgroundOpacityCommand}" />
+                </Grid>
+
               </StackPanel>
             </Border>
           </StackPanel>

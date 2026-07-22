@@ -167,6 +167,9 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
     public string RobotWidthScaleText => $"{_hudLayoutSettings.RobotWidthScale:P0}";
 
+    public string MatchInfoPanelBackgroundOpacityText =>
+        $"{_hudLayoutSettings.MatchInfoPanelBackgroundOpacity:P0}";
+
     [RelayCommand]
     private async Task ApplyClientIdAsync()
     {
@@ -212,6 +215,24 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private void IncreaseMatchInfoPanelBackgroundOpacity()
+    {
+        if (_hudLayoutSettings.IncreaseMatchInfoPanelBackgroundOpacity())
+        {
+            RaiseDisplayStateChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void DecreaseMatchInfoPanelBackgroundOpacity()
+    {
+        if (_hudLayoutSettings.DecreaseMatchInfoPanelBackgroundOpacity())
+        {
+            RaiseDisplayStateChanged();
+        }
+    }
+
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName != nameof(TelemetryStore.CurrentSnapshot)) return;
@@ -237,6 +258,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(RobotTextScaleText));
         OnPropertyChanged(nameof(RobotWidthScaleText));
+        OnPropertyChanged(nameof(MatchInfoPanelBackgroundOpacityText));
     }
 
     private void RefreshFields()

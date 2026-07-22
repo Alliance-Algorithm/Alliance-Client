@@ -12,7 +12,8 @@ Outpost 与 Base 分两行显示，Outpost 在上，Base 在下。
              x:Class="Alliance.Client.Features.Hud.TeamPanel"
              x:DataType="telemetry:TeamPanelSnapshot"
              mc:Ignorable="d">
-    <Border Classes="hud-panel">
+    <Border x:Name="PanelFrame"
+            Classes="hud-panel">
         <StackPanel Spacing="6">
             <!-- 建筑血量：Outpost 在上，Base 在下，显示当前/满血 -->
             <StackPanel Spacing="4">
