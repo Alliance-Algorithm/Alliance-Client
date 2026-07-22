@@ -2,7 +2,7 @@
 
 实时机器人对战的桌面客户端，基于 Avalonia 构建。通过 MQTT 接收遥测数据，在 HUD 叠加层中实时展示比赛状态。
 
-![](./docs/UI.png)
+![](./docs/display.png)
 
 ## 项目结构
 
