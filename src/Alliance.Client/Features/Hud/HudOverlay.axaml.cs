@@ -1,7 +1,10 @@
 using System.ComponentModel;
+using Alliance.Client.Shell;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
+using Avalonia.VisualTree;
 
 namespace Alliance.Client.Features.Hud;
 
@@ -24,6 +27,44 @@ public partial class HudOverlay : UserControl
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+    }
+
+    private void OnSettingsPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (TryGetMainWindowViewModel(out var window, out var vm))
+        {
+            vm.OpenSettings(window);
+            e.Handled = true;
+        }
+    }
+
+    private void OnImagePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (TryGetMainWindowViewModel(out var window, out var vm))
+        {
+            vm.OpenImage(window);
+            e.Handled = true;
+        }
+    }
+
+    private bool TryGetMainWindowViewModel(out Window window, out MainWindowViewModel viewModel)
+    {
+        window = null!;
+        viewModel = null!;
+
+        if (this.GetVisualRoot() is not Window rootWindow)
+        {
+            return false;
+        }
+
+        if (rootWindow.DataContext is not MainWindowViewModel mainWindowViewModel)
+        {
+            return false;
+        }
+
+        window = rootWindow;
+        viewModel = mainWindowViewModel;
+        return true;
     }
 
     private void HandleDataContextChanged(object? sender, EventArgs e)

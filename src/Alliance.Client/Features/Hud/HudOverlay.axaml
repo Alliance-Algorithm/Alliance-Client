@@ -5,7 +5,8 @@ HudOverlay - HUD主控件（整体布局容器）
 中上：我方机器人 | 顶部状态条 + 16:9 视频图传 | 敌方机器人
 底部：当前机器人 | RESERVED | MAP | EVENTS
 
-IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主窗口按钮。
+IsHitTestVisible="False": 默认不拦截鼠标事件，允许穿透到视频层。
+SETTINGS/IMAGE 按钮单独设 IsHitTestVisible="True" 以接收点击。
 -->
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -58,6 +59,29 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
                          TextTrimming="CharacterEllipsis" />
             </Border>
             <TextBlock Classes="hud-countdown" Text="{Binding Snapshot.MatchTimeText}" />
+          </StackPanel>
+
+          <StackPanel Orientation="Horizontal" Spacing="8"
+                      HorizontalAlignment="Right" VerticalAlignment="Top"
+                      Margin="0,10,10,0"
+                      IsHitTestVisible="True">
+            <Border Classes="settings-btn"
+                    PointerPressed="OnSettingsPressed">
+              <TextBlock Text="SETTINGS"
+                         FontSize="11" FontWeight="SemiBold"
+                         FontFamily="{DynamicResource AppMono}"
+                         Foreground="{DynamicResource TextBrush}"
+                         VerticalAlignment="Center" />
+            </Border>
+
+            <Border Classes="settings-btn"
+                    PointerPressed="OnImagePressed">
+              <TextBlock Text="IMAGE"
+                         FontSize="11" FontWeight="SemiBold"
+                         FontFamily="{DynamicResource AppMono}"
+                         Foreground="{DynamicResource TextBrush}"
+                         VerticalAlignment="Center" />
+            </Border>
           </StackPanel>
         </Grid>
       </Border>

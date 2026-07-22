@@ -256,7 +256,18 @@ public sealed class MqttTelemetryService : ITelemetryService
             using var timer = new PeriodicTimer(TelemetryFlushInterval);
             while (await timer.WaitForNextTickAsync(cancellationToken))
             {
-                await FlushPendingTelemetryAsync();
+                try
+                {
+                    await FlushPendingTelemetryAsync();
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Telemetry batch flush failed: {Message}", ex.Message);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

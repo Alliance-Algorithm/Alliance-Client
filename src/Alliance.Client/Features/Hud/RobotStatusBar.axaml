@@ -88,11 +88,9 @@
                                     <TextBlock Grid.Column="0"
                                                Classes="hud-robot-meta"
                                                Text="{Binding AmmoDisplayText}"
-                                               IsVisible="{Binding !IsRadar}"
                                                FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
 
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4"
-                                                IsVisible="{Binding !IsRadar}">
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
                                         <Border Classes="hud-buff-chip" IsVisible="{Binding HasFirstBuff}">
                                             <TextBlock Text="{Binding FirstBuffText}"
                                                        Classes="hud-buff-chip-text"
@@ -114,13 +112,6 @@
                                         <TextBlock Text="雷达锁定"
                                                    Classes="hud-radar-chip-text" />
                                     </Border>
-
-                                    <TextBlock Grid.Column="0" Grid.ColumnSpan="3"
-                                               Classes="hud-robot-meta"
-                                               Text="{Binding RadarDetailText}"
-                                               IsVisible="{Binding IsRadar}"
-                                               HorizontalAlignment="Left"
-                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=11}" />
                                 </Grid>
                             </Grid>
                         </Border>

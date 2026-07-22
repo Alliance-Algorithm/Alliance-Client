@@ -99,7 +99,6 @@ public sealed record RobotStatusSnapshot(
     string HealthDisplayText = "--",
     string AmmoDisplayText = "弹 --",
     bool IsAlive = true,
-    bool IsRadar = false,
     bool IsAerial = false,
     bool IsRadarLocked = false,
     IReadOnlyList<string>? BuffLabels = null)
@@ -123,25 +122,10 @@ public sealed record RobotStatusSnapshot(
 
     public double CardOpacity => IsAlive ? 1.0 : 0.46;
 
-    public string StateText
-    {
-        get
-        {
-            if (IsRadar)
-            {
-                return IsEnemy ? "不可观测" : "数据链";
-            }
-
-            if (IsAerial)
-            {
-                return "空中单位";
-            }
-
-            return IsAlive ? "ONLINE" : "已击毁";
-        }
-    }
-
-    public string RadarDetailText => IsEnemy ? "--" : "目标更新中";
+    public string StateText =>
+        IsAerial
+            ? "空中单位"
+            : IsAlive ? "ONLINE" : "已击毁";
 }
 
 public sealed record CurrentRobotPanelSnapshot(

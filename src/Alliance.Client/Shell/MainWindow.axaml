@@ -16,38 +16,5 @@
         ExtendClientAreaChromeHints="NoChrome"
         ExtendClientAreaTitleBarHeightHint="-1"
         mc:Ignorable="d">
-  <Grid>
-    <hud:HudOverlay DataContext="{Binding Hud}" />
-
-    <!-- 主窗口操作按钮：保留设置与 RMCS 图像独立窗口入口，并对齐到 HUD 中央顶部状态条 -->
-    <Grid RowDefinitions="*,220"
-          ColumnDefinitions="2*,6*,2*"
-          RowSpacing="4" ColumnSpacing="4"
-          Margin="16"
-          ZIndex="300">
-      <StackPanel Grid.Row="0" Grid.Column="1"
-                  Orientation="Horizontal" Spacing="8"
-                  HorizontalAlignment="Right" VerticalAlignment="Top"
-                  Margin="0,10,10,0"
-                  IsHitTestVisible="True">
-        <Border Classes="settings-btn"
-                PointerPressed="OnSettingsPressed">
-          <TextBlock Text="SETTINGS"
-                     FontSize="11" FontWeight="SemiBold"
-                     FontFamily="{DynamicResource AppMono}"
-                     Foreground="{DynamicResource TextBrush}"
-                     VerticalAlignment="Center" />
-        </Border>
-
-        <Border Classes="settings-btn"
-                PointerPressed="OnImagePressed">
-          <TextBlock Text="IMAGE"
-                     FontSize="11" FontWeight="SemiBold"
-                     FontFamily="{DynamicResource AppMono}"
-                     Foreground="{DynamicResource TextBrush}"
-                     VerticalAlignment="Center" />
-        </Border>
-      </StackPanel>
-    </Grid>
-  </Grid>
+  <hud:HudOverlay DataContext="{Binding Hud}" />
 </Window>

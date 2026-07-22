@@ -80,7 +80,6 @@ public sealed class TelemetryMappingTests
         Assert.False(snapshot.AllyRobots[1].IsAlive);
         Assert.False(snapshot.AllyRobots[5].ShowHealthBar);
         Assert.True(snapshot.AllyRobots[5].IsAerial);
-        Assert.False(snapshot.AllyRobots[5].IsRadar);
         Assert.Equal("无人机", snapshot.AllyRobots[5].RobotTypeText);
         Assert.Equal("弹 88", snapshot.AllyRobots[5].AmmoDisplayText);
         Assert.Equal("空中单位", snapshot.AllyRobots[5].StateText);
