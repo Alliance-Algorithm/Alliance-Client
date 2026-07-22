@@ -1,0 +1,126 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:Alliance.Client.Features.RmcsImage"
+        x:Class="Alliance.Client.Features.RmcsImage.ImageWindow"
+        x:DataType="vm:ImageWindowViewModel"
+        Width="960" Height="640"
+        MinWidth="560" MinHeight="400"
+        Title="RMCS Images"
+        Background="#0A0E14"
+        mc:Ignorable="d">
+  <Window.Resources>
+    <vm:StageColorConverter x:Key="StageColor" />
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*" Margin="16,12">
+    <!-- Progress bar -->
+    <Border Grid.Row="0" Padding="8,6" Margin="0,0,0,4"
+            Background="#0D1117" CornerRadius="6"
+            BorderBrush="#2D4657" BorderThickness="1">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="0">
+        <!-- Seq label -->
+        <TextBlock Text="{Binding ImageStore.PipelineProgress.ImageSeqText}"
+                   FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource AccentBrush}"
+                   VerticalAlignment="Center" Margin="0,0,10,0" />
+
+        <!-- Stage 0: 接收背景 -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="●" FontSize="11"
+                     Foreground="{Binding ImageStore.PipelineProgress.BackgroundReceived,
+                     Converter={StaticResource StageColor}}" />
+          <TextBlock Text="背景传输" FontSize="12"
+                     Foreground="{DynamicResource TextBrush}" />
+        </StackPanel>
+        <TextBlock Text=" ── " FontSize="12" Foreground="#333333" />
+
+        <!-- Stage 1: 背景解析 -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="●" FontSize="11"
+                     Foreground="{Binding ImageStore.PipelineProgress.BackgroundDecoded,
+                     Converter={StaticResource StageColor}}" />
+          <TextBlock Text="背景解析" FontSize="12"
+                     Foreground="{DynamicResource TextBrush}" />
+        </StackPanel>
+        <TextBlock Text=" ── " FontSize="12" Foreground="#333333" />
+
+        <!-- Stage 2: 接收轨迹 -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="●" FontSize="11"
+                     Foreground="{Binding ImageStore.PipelineProgress.TrajectoryReceived,
+                     Converter={StaticResource StageColor}}" />
+          <TextBlock Text="轨迹传输" FontSize="12"
+                     Foreground="{DynamicResource TextBrush}" />
+        </StackPanel>
+        <TextBlock Text=" ── " FontSize="12" Foreground="#333333" />
+
+        <!-- Stage 3: 轨迹解析 -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="●" FontSize="11"
+                     Foreground="{Binding ImageStore.PipelineProgress.TrajectoryDecoded,
+                     Converter={StaticResource StageColor}}" />
+          <TextBlock Text="轨迹解析" FontSize="12"
+                     Foreground="{DynamicResource TextBrush}" />
+        </StackPanel>
+        <TextBlock Text=" ── " FontSize="12" Foreground="#333333" />
+
+        <!-- Stage 4: 图像拼合 -->
+        <StackPanel Orientation="Horizontal" Spacing="4">
+          <TextBlock Text="●" FontSize="11"
+                     Foreground="{Binding ImageStore.PipelineProgress.Composed,
+                     Converter={StaticResource StageColor}}" />
+          <TextBlock Text="拼合" FontSize="12"
+                     Foreground="{DynamicResource TextBrush}" />
+        </StackPanel>
+      </StackPanel>
+    </Border>
+
+    <!-- Stats -->
+    <Border Grid.Row="1" Padding="6,4" Margin="0,0,0,4"
+            Background="#0D1117" CornerRadius="6"
+            BorderBrush="#2D4657" BorderThickness="1">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="16">
+        <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}">
+          <Run Text="背景 丢包:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.BgLossRateText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+          <Run Text=" " />
+          <Run Text="收包:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.BgRecvText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+          <Run Text=" " />
+          <Run Text="组装:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.BgAsmText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+        </TextBlock>
+        <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}">
+          <Run Text="轨迹 丢包:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.TrajLossRateText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+          <Run Text=" " />
+          <Run Text="收包:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.TrajRecvText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+          <Run Text=" " />
+          <Run Text="组装:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.TrajAsmText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+        </TextBlock>
+        <TextBlock FontSize="11" Foreground="{DynamicResource TextBrush}">
+          <Run Text="总耗时:" />
+          <Run Text="{Binding ImageStore.PipelineProgress.TotalDurationText}"
+               Foreground="{DynamicResource AccentBrush}" FontWeight="SemiBold" />
+        </TextBlock>
+      </StackPanel>
+    </Border>
+
+    <!-- Composed image -->
+    <Border Grid.Row="2" Background="#0D1117" CornerRadius="6"
+            BorderBrush="#2D4657" BorderThickness="1">
+      <Image Source="{Binding ImageStore.ComposedImage}"
+             Stretch="Uniform" />
+    </Border>
+  </Grid>
+</Window>

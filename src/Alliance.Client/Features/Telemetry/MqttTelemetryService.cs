@@ -25,7 +25,8 @@ public sealed class MqttTelemetryService : ITelemetryService
         nameof(RobotStaticStatus),
         nameof(RobotDynamicStatus),
         nameof(Buff),
-        nameof(RadarInfoToClient)
+        nameof(RadarInfoToClient),
+        nameof(CustomByteBlock)
     ];
 
     private readonly AppSettings _settings;
@@ -327,10 +328,28 @@ public sealed class MqttTelemetryService : ITelemetryService
                 case nameof(RadarInfoToClient):
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyRadarInfoToClient(RadarInfoToClient.Parser.ParseFrom(payload)));
+                case nameof(CustomByteBlock):
+                {
+                    var raw = payload;
+                    _ = Task.Run(() =>
+                    {
+                        try
+                        {
+                            _telemetryStore.ApplyCustomByteBlock(CustomByteBlock.Parser.ParseFrom(raw));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "CustomByteBlock processing failed");
+                        }
+                    });
+                    break;
+                }
                 default:
                     _logger.LogWarning("Ignoring unsupported MQTT topic '{Topic}'", args.ApplicationMessage.Topic);
-                    return Task.CompletedTask;
+                    break;
             }
+
+            return Task.CompletedTask;
         }
         catch (Exception ex)
         {

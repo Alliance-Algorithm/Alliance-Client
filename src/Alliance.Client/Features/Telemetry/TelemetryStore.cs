@@ -1,4 +1,5 @@
 using System.Globalization;
+using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
 using Alliance.Client.Shared.Models;
@@ -19,6 +20,7 @@ public sealed class TelemetryStore : ObservableObject
     private readonly object _gate = new();
     private readonly int? _configuredRobotId;
     private readonly bool _isConfiguredBlue;
+    private readonly RmcsImageProcessor _rmcsImageProcessor;
 
     private TelemetrySnapshot _currentSnapshot;
     private GameStatus? _gameStatus;
@@ -30,12 +32,13 @@ public sealed class TelemetryStore : ObservableObject
     private List<MechanismState> _activeMechanisms = [];
     private Dictionary<BuffKey, BuffState> _activeBuffs = [];
     private List<RadarSlotState> _radarSlots = [];
+    private byte[]? _customByteBlockData;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
     private string? _startupWarning;
     private string? _mqttNote;
 
-    public TelemetryStore(AppSettings settings)
+    public TelemetryStore(AppSettings settings, RmcsImageProcessor rmcsImageProcessor)
     {
         if (!PlayerIdentity.TryResolveRobotId(settings.Mqtt.ClientId, out var robotId))
         {
@@ -46,6 +49,8 @@ public sealed class TelemetryStore : ObservableObject
             _configuredRobotId = robotId;
             _isConfiguredBlue = robotId >= 100;
         }
+
+        _rmcsImageProcessor = rmcsImageProcessor;
 
         _currentSnapshot = BuildSnapshot();
     }
@@ -151,6 +156,11 @@ public sealed class TelemetryStore : ObservableObject
                 return msg;
             }
         }
+    }
+
+    public byte[]? CustomByteBlockData
+    {
+        get { lock (_gate) { return _customByteBlockData; } }
     }
 
     public void SetMqttState(ConnectionState state, string? note = null)
@@ -282,6 +292,18 @@ public sealed class TelemetryStore : ObservableObject
             }
 
             MarkTelemetryReceivedLocked(receivedAt);
+        }
+    }
+
+    public void ApplyCustomByteBlock(CustomByteBlock status)
+    {
+        var data = status.Data.ToByteArray();
+        _rmcsImageProcessor.Feed(data);
+
+        lock (_gate)
+        {
+            _customByteBlockData = data;
+            _lastTelemetryAt = DateTimeOffset.UtcNow;
         }
     }
 

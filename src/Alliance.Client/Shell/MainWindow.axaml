@@ -30,5 +30,16 @@
                    Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
       </StackPanel>
     </Border>
+
+    <!-- 图像按钮 -->
+    <Border Classes="settings-btn"
+            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="30,70,0,0"
+            PointerPressed="OnImagePressed" ZIndex="300">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <TextBlock Text="🖼" FontSize="14" VerticalAlignment="Center" />
+        <TextBlock Text="Image" FontSize="12" FontWeight="SemiBold"
+                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
   </Grid>
 </Window>

@@ -101,3 +101,7 @@ message RadarSingleRobotInfo {
 message RadarInfoToClient {
   repeated RadarSingleRobotInfo radar_single_robot_info = 1;
 }
+
+message CustomByteBlock {
+  bytes data = 1;
+}

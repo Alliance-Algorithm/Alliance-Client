@@ -32,4 +32,13 @@ public partial class MainWindow : Window
             e.Handled = true;
         }
     }
+
+    private void OnImagePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.OpenImage(this);
+            e.Handled = true;
+        }
+    }
 }

@@ -24,7 +24,7 @@ public sealed class TelemetryMappingTests
     public void TelemetryStore_Maps_ProtocolMessages_Into_HudSnapshot()
     {
         var settings = CreateSettings();
-        var store = new TelemetryStore(settings);
+        var store = new TelemetryStore(settings, null!);
 
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyGameStatus(new GameStatus
@@ -93,7 +93,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_Maps_Buffs_Events_And_Mechanisms_Into_State_And_Hud()
     {
-        var store = new TelemetryStore(CreateSettings());
+        var store = new TelemetryStore(CreateSettings(), null!);
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyBuff(new Buff
@@ -137,7 +137,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_RefreshStaleness_CountsDown_And_Expires_TimedState()
     {
-        var store = new TelemetryStore(CreateSettings());
+        var store = new TelemetryStore(CreateSettings(), null!);
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyBuff(new Buff
         {
@@ -171,7 +171,7 @@ public sealed class TelemetryMappingTests
     [InlineData("101", 1, 101)]
     public void TelemetryStore_Maps_RadarInfo_By_Client_Side(string clientId, int expectedEnemyHero, int expectedAllyHero)
     {
-        var store = new TelemetryStore(CreateSettings(clientId));
+        var store = new TelemetryStore(CreateSettings(clientId), null!);
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         var radar = new RadarInfoToClient();
@@ -201,7 +201,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_Marks_Snapshot_As_Stale_When_Data_Stops()
     {
-        var store = new TelemetryStore(CreateSettings());
+        var store = new TelemetryStore(CreateSettings(), null!);
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyGameStatus(new GameStatus
         {
