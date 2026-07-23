@@ -1,0 +1,84 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.ReversePanel"
+             x:DataType="telemetry:ReversePanelSnapshot"
+             mc:Ignorable="d">
+  <Border Classes="hud-panel" VerticalAlignment="Stretch">
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="8,6">
+      <!-- 左：Buff 竖排 -->
+      <StackPanel Grid.Column="0" Spacing="3">
+        <TextBlock Classes="hud-caption" Text="BUFF" />
+        <ItemsControl ItemsSource="{Binding BuffLines}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="telemetry:ReverseBuffLineSnapshot">
+              <TextBlock Classes="hud-value" FontSize="13"
+                         Text="{Binding DisplayText}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Classes="hud-detail"
+                   Text="无增益"
+                   IsVisible="{Binding !HasBuffs}" />
+      </StackPanel>
+
+      <!-- 右：三等分 — 弹速+冷却 / 热量 / 能量 -->
+      <Grid Grid.Column="1" RowDefinitions="*,*,*" RowSpacing="4">
+        <!-- 行1：弹速 | 冷却 -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="8" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Classes="hud-detail" Text="弹速" VerticalAlignment="Center" />
+            <TextBlock Classes="hud-value" FontSize="13"
+                       VerticalAlignment="Center"
+                       Text="{Binding FireRateText}" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+            <TextBlock Classes="hud-detail" Text="冷却" VerticalAlignment="Center" />
+            <TextBlock Classes="hud-value" FontSize="13"
+                       VerticalAlignment="Center"
+                       Text="{Binding HeatCooldownText}" />
+          </StackPanel>
+        </Grid>
+
+        <!-- 行2：热量 -->
+        <Grid Grid.Row="1" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
+          <TextBlock Classes="hud-detail" Text="热量" VerticalAlignment="Center" />
+          <Border x:Name="HeatBarBg" Classes="hud-bar-bg" Grid.Column="1" VerticalAlignment="Center">
+            <Border Classes="hud-bar-fill" Background="#FF8766" HorizontalAlignment="Left">
+              <Border.Width>
+                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                  <Binding Path="HeatPercent" />
+                  <Binding Path="#HeatBarBg.Bounds.Width" />
+                </MultiBinding>
+              </Border.Width>
+            </Border>
+          </Border>
+          <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                     VerticalAlignment="Center"
+                     Text="{Binding HeatValueText}" />
+        </Grid>
+
+        <!-- 行3：能量 -->
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6" VerticalAlignment="Center">
+          <TextBlock Classes="hud-detail" Text="能量" VerticalAlignment="Center" />
+          <Border x:Name="EnergyBarBg" Classes="hud-bar-bg" Grid.Column="1" VerticalAlignment="Center">
+            <Border Classes="hud-bar-fill" Background="{DynamicResource AccentBrush}" HorizontalAlignment="Left">
+              <Border.Width>
+                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                  <Binding Path="ChassisEnergyPercent" />
+                  <Binding Path="#EnergyBarBg.Bounds.Width" />
+                </MultiBinding>
+              </Border.Width>
+            </Border>
+          </Border>
+          <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                     VerticalAlignment="Center"
+                     Text="{Binding ChassisEnergyText}" />
+        </Grid>
+      </Grid>
+    </Grid>
+  </Border>
+</UserControl>

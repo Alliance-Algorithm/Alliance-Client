@@ -413,6 +413,63 @@
     <Setter Property="ClipToBounds" Value="True" />
   </Style>
 
+  <!-- 基地护盾段（黄色） -->
+  <Style Selector="Border.hud-shield-fill">
+    <Setter Property="Background" Value="#E6B800" />
+  </Style>
+
+  <!-- 侧边 alert 面板 -->
+  <Style Selector="Border.hud-side-alert">
+    <Setter Property="Background" Value="#1A0F00EE" />
+    <Setter Property="BorderBrush" Value="#FF9F1A" />
+    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,6" />
+    <Setter Property="MinWidth" Value="160" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-side-alert-title">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#FFD27A" />
+  </Style>
+
+  <Style Selector="Border.hud-side-alert-bar-bg">
+    <Setter Property="Background" Value="#2A1A00" />
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="8" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Border.hud-side-alert-bar-fill">
+    <Setter Property="CornerRadius" Value="2" />
+    <Setter Property="Height" Value="8" />
+  </Style>
+
+  <Style Selector="Border.hud-side-alert-stage">
+    <Setter Property="Background" Value="#FFFFFFCC" />
+    <Setter Property="Width" Value="2" />
+    <Setter Property="Height" Value="10" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <!-- 基地攻击 toast -->
+  <Style Selector="Border.hud-base-attack-toast">
+    <Setter Property="Background" Value="#5A1000EE" />
+    <Setter Property="BorderBrush" Value="#FF5533" />
+    <Setter Property="BorderThickness" Value="1.5" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="18,10" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-base-attack-toast-text">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontSize" Value="16" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="#FFB4A0" />
+  </Style>
+
   <!-- 累计总伤数值 -->
   <Style Selector="TextBlock.hud-damage-value">
     <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />

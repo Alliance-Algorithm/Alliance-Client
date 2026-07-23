@@ -38,8 +38,10 @@ public sealed class TelemetryMappingTests
         store.ApplyGlobalUnitStatus(new GlobalUnitStatus
         {
             BaseHealth = 1500,
+            BaseShield = 150,
             OutpostHealth = 800,
             EnemyBaseHealth = 1300,
+            EnemyBaseShield = 0,
             EnemyOutpostHealth = 620,
             TotalDamageAlly = 345,
             TotalDamageEnemy = 678,
@@ -49,13 +51,20 @@ public sealed class TelemetryMappingTests
         store.ApplyRobotStaticStatus(new RobotStaticStatus
         {
             RobotId = 1,
-            MaxHealth = 300
+            MaxHealth = 300,
+            PerformanceSystemShooter = 1,
+            PerformanceSystemChassis = 2,
+            MaxHeat = 240,
+            HeatCooldownRate = 30f,
+            MaxChassisEnergy = 100
         });
         store.ApplyRobotDynamicStatus(new RobotDynamicStatus
         {
             CurrentHealth = 250,
             LastProjectileFireRate = 23.5f,
-            RemainingAmmo = 120
+            RemainingAmmo = 120,
+            CurrentHeat = 80,
+            CurrentChassisEnergy = 60
         });
 
         var snapshot = store.CurrentSnapshot;
@@ -67,10 +76,13 @@ public sealed class TelemetryMappingTests
         Assert.Equal("1", snapshot.RedScoreText);
         Assert.Equal("Base 1500", snapshot.AllyTeam.BaseHealthText);
         Assert.Equal("Outpost 800", snapshot.AllyTeam.OutpostHealthText);
-        Assert.Equal("1500/5000", snapshot.AllyTeam.BaseHealthDisplay);
-        Assert.Equal("800/1500", snapshot.AllyTeam.OutpostHealthDisplay);
+        Assert.Equal("1500（150）", snapshot.AllyTeam.BaseHealthDisplay);
+        Assert.Equal("800", snapshot.AllyTeam.OutpostHealthDisplay);
+        Assert.Equal(1500d / 1650d, snapshot.AllyTeam.BaseHpBarPercent, 5);
+        Assert.Equal(150d / 1650d, snapshot.AllyTeam.BaseShieldBarPercent, 5);
         Assert.Equal("DMG 345", snapshot.AllyTeam.DamageText);
         Assert.Equal("Base 1300", snapshot.EnemyTeam.BaseHealthText);
+        Assert.Equal("1300（0）", snapshot.EnemyTeam.BaseHealthDisplay);
         Assert.False(snapshot.AllyTeam.IsBlue);
         Assert.True(snapshot.EnemyTeam.IsBlue);
         Assert.Equal("100", snapshot.AllyRobots[0].HealthText);
@@ -86,9 +98,14 @@ public sealed class TelemetryMappingTests
         Assert.Equal("707", snapshot.EnemyRobots[4].HealthText);
         Assert.Equal("弹 --", snapshot.EnemyRobots[0].AmmoDisplayText);
         Assert.True(snapshot.EnemyRobots[0].IsBlue);
-        Assert.Equal("Robot 1", snapshot.CurrentRobot.RobotLabel);
+        Assert.Equal("红方1号-英雄", snapshot.CurrentRobot.RobotLabel);
         Assert.Equal("HP 250/300", snapshot.CurrentRobot.HealthText);
+        Assert.Equal("冷却优先 / 功率优先", snapshot.CurrentRobot.PerformanceText);
         Assert.Equal("允许发弹量: 120", snapshot.CurrentRobot.AmmoText);
+        Assert.Equal("23.5", snapshot.ReversePanel.FireRateText);
+        Assert.Equal("30/s", snapshot.ReversePanel.HeatCooldownText);
+        Assert.Equal("80 | 240", snapshot.ReversePanel.HeatValueText);
+        Assert.Equal("60/100 J", snapshot.ReversePanel.ChassisEnergyText);
     }
 
     [Fact]
@@ -153,11 +170,70 @@ public sealed class TelemetryMappingTests
         Assert.Equal(["ATK+50% 20s", "COOL+30 9s"], snapshot.AllyRobots[0].DisplayBuffLabels);
         Assert.True(snapshot.AllyRobots[0].HasFirstBuff);
         Assert.True(snapshot.AllyRobots[0].HasSecondBuff);
-        Assert.Equal("ATK+50% 20s | COOL+30 9s", snapshot.CurrentRobot.BuffText);
+        Assert.Equal(2, snapshot.ReversePanel.BuffLines.Count);
+        Assert.Equal("【攻击】+50%（20s）", snapshot.ReversePanel.BuffLines[0].DisplayText);
+        Assert.Equal("【冷却】+30（9s）", snapshot.ReversePanel.BuffLines[1].DisplayText);
         Assert.Equal("飞镖命中 方2 目标5", snapshot.LatestEvent?.SummaryText);
         Assert.Equal(2, snapshot.ActiveMechanisms.Count);
         Assert.Equal("己方堡垒占领 15s", snapshot.ActiveMechanisms[0].SummaryText);
         Assert.Equal("对方堡垒占领 9s", snapshot.ActiveMechanisms[1].SummaryText);
+        Assert.Contains(snapshot.AllySideAlerts, a => a.Kind == SideAlertKind.FortressCapture);
+        Assert.Contains(snapshot.EnemySideAlerts, a => a.Kind == SideAlertKind.FortressCapture);
+    }
+
+    [Fact]
+    public void TelemetryStore_EnemyAirSupport_Countered_Until_Next_Call()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+
+        store.ApplyEvent(new Event { EventId = 8, Param = "1" });
+        Assert.Equal("【被反制】", store.CurrentSnapshot.EnemyRobots[5].StateText);
+        Assert.Equal("空中单位", store.CurrentSnapshot.AllyRobots[5].StateText);
+
+        store.ApplyEvent(new Event { EventId = 7 });
+        Assert.Equal("空中单位", store.CurrentSnapshot.EnemyRobots[5].StateText);
+    }
+
+    [Fact]
+    public void TelemetryStore_BaseAttack_Toast_Lasts_Five_Seconds()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+        store.ApplyEvent(new Event { EventId = 11 });
+
+        Assert.True(store.CurrentSnapshot.ShowBaseAttackToast);
+
+        store.RefreshStaleness(DateTimeOffset.UtcNow.AddSeconds(6));
+        Assert.False(store.CurrentSnapshot.ShowBaseAttackToast);
+    }
+
+    [Fact]
+    public void TelemetryStore_Outpost_Rebuild_Alerts_Follow_Status()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+
+        store.ApplyGlobalUnitStatus(new GlobalUnitStatus
+        {
+            OutpostStatus = 4,
+            EnemyOutpostStatus = 5
+        });
+
+        Assert.Contains(store.CurrentSnapshot.AllySideAlerts, a => a.Kind == SideAlertKind.OutpostRebuildable);
+        Assert.Contains(store.CurrentSnapshot.EnemySideAlerts, a => a.Kind == SideAlertKind.OutpostRebuilding);
+
+        store.ApplyGlobalUnitStatus(new GlobalUnitStatus
+        {
+            OutpostStatus = 1,
+            EnemyOutpostStatus = 1
+        });
+
+        // 离开重建中不足 1s 时敌方重建面板仍可短暂保留；己方可重建应消失
+        Assert.DoesNotContain(store.CurrentSnapshot.AllySideAlerts, a => a.Kind == SideAlertKind.OutpostRebuildable);
+
+        store.RefreshStaleness(DateTimeOffset.UtcNow.AddSeconds(1.1));
+        Assert.DoesNotContain(store.CurrentSnapshot.EnemySideAlerts, a => a.Kind == SideAlertKind.OutpostRebuilding);
     }
 
     [Fact]
