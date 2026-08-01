@@ -1,4 +1,5 @@
 using System.Globalization;
+using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
@@ -32,6 +33,7 @@ public sealed class TelemetryStore : ObservableObject
     private List<MechanismState> _activeMechanisms = [];
     private Dictionary<BuffKey, BuffState> _activeBuffs = [];
     private List<RadarSlotState> _radarSlots = [];
+    private EnemyRadarData? _enemyRadarData;
     private byte[]? _customByteBlockData;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
@@ -275,6 +277,21 @@ public sealed class TelemetryStore : ObservableObject
 
     public void ProcessCustomByteBlockImage(byte[] data)
     {
+        if (data.Length > 0 && data[0] == 0x03)
+        {
+            var result = RadarByteParser.Parse(data.AsSpan(1));
+            if (result is not null)
+            {
+                lock (_gate)
+                {
+                    _enemyRadarData = result;
+                    _lastTelemetryAt = DateTimeOffset.UtcNow;
+                    PublishSnapshotLocked();
+                }
+            }
+            return;
+        }
+
         _rmcsImageProcessor.Feed(data);
     }
 
@@ -498,6 +515,7 @@ public sealed class TelemetryStore : ObservableObject
             AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs, radarRobots),
             EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs, radarRobots),
             CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
+            EnemyRadarData = _enemyRadarData,
             LatestEvent = _latestEvent is null
                 ? null
                 : new EventTelemetrySnapshot(_latestEvent.EventId, _latestEvent.RawParam, _latestEvent.SummaryText),
@@ -517,8 +535,10 @@ public sealed class TelemetryStore : ObservableObject
         bool isEnemy = false,
         bool isBlue = true)
     {
-        var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
-        var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
+        var (remainingEconomy, totalEconomy) = isEnemy && _enemyRadarData is not null
+            ? ((int?)_enemyRadarData.EnemyRemainingGold, (long?)_enemyRadarData.EnemyTotalGold)
+            : (_globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy,
+               _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained);
 
         return new TeamPanelSnapshot(
             sideLabel,
@@ -579,7 +599,9 @@ public sealed class TelemetryStore : ObservableObject
             var slotLabel = RobotSlots[index];
             var relativeRobotId = VisibleRobotSlotIds[index];
             var health = TryReadRobotHealth(isAllyTeam, relativeRobotId);
-            var bullets = TryReadRobotBullets(isAllyTeam, relativeRobotId);
+            var bullets = isAllyTeam
+                ? TryReadRobotBullets(isAllyTeam, relativeRobotId)
+                : TryReadEnemyRobotBullets(relativeRobotId);
             var absoluteRobotId = ResolveTeamRobotId(relativeRobotId, isAllyTeam);
             var showHealthBar = relativeRobotId != 6;
             var isAerial = relativeRobotId == 6;
@@ -649,6 +671,22 @@ public sealed class TelemetryStore : ObservableObject
         }
 
         return _globalUnitStatus.RobotBullets[index];
+    }
+
+    private int? TryReadEnemyRobotBullets(int relativeRobotId)
+    {
+        if (_enemyRadarData is null)
+            return null;
+
+        return relativeRobotId switch
+        {
+            1 => _enemyRadarData.HeroBullets,
+            3 => _enemyRadarData.Infantry3Bullets,
+            4 => _enemyRadarData.Infantry4Bullets,
+            6 => _enemyRadarData.AerialBullets,
+            7 => _enemyRadarData.SentinelBullets,
+            _ => null
+        };
     }
 
     private CurrentRobotPanelSnapshot BuildCurrentRobotPanel(IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs)
