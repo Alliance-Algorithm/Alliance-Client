@@ -1,6 +1,7 @@
 using Alliance.Client.Features.Control;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.RmcsImage;
+using Alliance.Client.Features.ScreenRecording;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
@@ -41,6 +42,11 @@ public static class AppBootstrapper
         services.AddSingleton<HudLayoutSettings>();
         services.AddSingleton<IVideoSupervisorService, VideoSupervisorService>();
         services.AddSingleton<ICommandService, NoOpCommandService>();
+
+        services.AddSingleton<RecordingSettings>();
+        services.AddSingleton<ScreenRecorderService>();
+        services.AddSingleton<ScreenRecorderViewModel>();
+
         services.AddSingleton<StartupLogger>();
         services.AddSingleton<AppRuntimeCoordinator>();
 

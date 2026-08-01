@@ -11,6 +11,7 @@ public partial class SettingsDialog : Window
     private readonly Border _basicNav;
     private readonly Border _messageNav;
     private readonly Border _displayNav;
+    private readonly Border _recordingsNav;
 
     public SettingsDialog()
     {
@@ -18,6 +19,7 @@ public partial class SettingsDialog : Window
         _basicNav = this.FindControl<Border>("BasicNav")!;
         _messageNav = this.FindControl<Border>("MessageNav")!;
         _displayNav = this.FindControl<Border>("DisplayNav")!;
+        _recordingsNav = this.FindControl<Border>("RecordingsNav")!;
         UpdateNavStyles();
     }
 
@@ -26,6 +28,7 @@ public partial class SettingsDialog : Window
     {
         DataContext = viewModel;
         viewModel.PropertyChanged += (_, _) => UpdateNavStyles();
+        KeyDown += OnDialogKeyDown;
     }
 
     private void InitializeComponent()
@@ -60,6 +63,36 @@ public partial class SettingsDialog : Window
         }
     }
 
+    private void OnRecordingsNavPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is SettingsDialogViewModel vm)
+        {
+            vm.IsRecordingsTab = true;
+            e.Handled = true;
+        }
+    }
+
+    private void OnKeyBindPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is SettingsDialogViewModel vm)
+        {
+            vm.StartKeyRebind();
+            e.Handled = true;
+        }
+    }
+
+    private void OnDialogKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is SettingsDialogViewModel vm)
+        {
+            vm.OnKeyRebindCapture(e);
+            if (vm.IsListeningForKey)
+            {
+                e.Handled = true;
+            }
+        }
+    }
+
     private void UpdateNavStyles()
     {
         if (DataContext is not SettingsDialogViewModel vm) return;
@@ -67,6 +100,7 @@ public partial class SettingsDialog : Window
         ApplyNav(_basicNav, vm.IsBasicTab);
         ApplyNav(_messageNav, vm.IsMessageTab);
         ApplyNav(_displayNav, vm.IsDisplayTab);
+        ApplyNav(_recordingsNav, vm.IsRecordingsTab);
     }
 
     private static void ApplyNav(Border nav, bool active)

@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.RmcsImage;
+using Alliance.Client.Features.ScreenRecording;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
 using Avalonia.Controls;
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -19,6 +21,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private readonly VideoStreamStore _videoStreamStore;
     private readonly ImageWindowViewModel _imageWindowViewModel;
+    private readonly RecordingSettings _recordingSettings;
+    private readonly ScreenRecorderService _screenRecorder;
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly HudLayoutSettings _hudLayoutSettings;
     private string _currentRobotLabel;
@@ -32,6 +36,9 @@ public sealed class MainWindowViewModel : ObservableObject
         VideoStreamStore videoStreamStore,
         AppRuntimeCoordinator runtimeCoordinator,
         ImageWindowViewModel imageWindowViewModel,
+        ScreenRecorderViewModel screenRecorder,
+        ScreenRecorderService screenRecorderService,
+        RecordingSettings recordingSettings,
         ILogger<MainWindowViewModel> logger,
         HudLayoutSettings hudLayoutSettings)
     {
@@ -41,6 +48,9 @@ public sealed class MainWindowViewModel : ObservableObject
         _videoStreamStore = videoStreamStore;
         _runtimeCoordinator = runtimeCoordinator;
         _imageWindowViewModel = imageWindowViewModel;
+        Recorder = screenRecorder;
+        _recordingSettings = recordingSettings;
+        _screenRecorder = screenRecorderService;
         _logger = logger;
         _hudLayoutSettings = hudLayoutSettings;
 
@@ -61,6 +71,8 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     public HudOverlayViewModel Hud { get; }
+
+    public ScreenRecorderViewModel Recorder { get; }
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {
@@ -83,7 +95,9 @@ public sealed class MainWindowViewModel : ObservableObject
             _videoStreamStore,
             _settings,
             _runtimeCoordinator,
-            _hudLayoutSettings);
+            _hudLayoutSettings,
+            _recordingSettings,
+            _screenRecorder);
         var dialog = new SettingsDialog(vm);
         dialog.Closed += (_, _) => _settingsDialog = null;
         _settingsDialog = dialog;
@@ -103,5 +117,19 @@ public sealed class MainWindowViewModel : ObservableObject
         dialog.Closed += (_, _) => _imageWindow = null;
         _imageWindow = dialog;
         dialog.Show(owner);
+    }
+
+    public void ToggleRecording()
+    {
+        Recorder.ToggleRecordingCommand.Execute(null);
+    }
+
+    public void HandleKeyDown(KeyEventArgs e)
+    {
+        if (_recordingSettings.KeyBindingPressed(e))
+        {
+            e.Handled = true;
+            ToggleRecording();
+        }
     }
 }

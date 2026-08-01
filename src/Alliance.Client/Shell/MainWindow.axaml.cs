@@ -17,6 +17,7 @@ public partial class MainWindow : Window
         : this()
     {
         DataContext = viewModel;
+        KeyDown += OnKeyDown;
     }
 
     private void InitializeComponent()
@@ -39,6 +40,23 @@ public partial class MainWindow : Window
         {
             vm.OpenImage(this);
             e.Handled = true;
+        }
+    }
+
+    private void OnRecordPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.ToggleRecording();
+            e.Handled = true;
+        }
+    }
+
+    private void OnKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.HandleKeyDown(e);
         }
     }
 }

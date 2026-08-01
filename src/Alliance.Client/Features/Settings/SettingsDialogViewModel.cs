@@ -1,11 +1,13 @@
 using System.ComponentModel;
 using Alliance.Client.Features.Hud;
+using Alliance.Client.Features.ScreenRecording;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Runtime;
 using Alliance.Client.Protocol;
 using Alliance.Client.Shared.Utils;
+using Avalonia.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
@@ -18,6 +20,8 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private readonly AppSettings _settings;
     private readonly AppRuntimeCoordinator _runtimeCoordinator;
     private readonly HudLayoutSettings _hudLayoutSettings;
+    private readonly RecordingSettings _recordingSettings;
+    private readonly ScreenRecorderService _screenRecorder;
     private string _mqttStatusLabel;
     private string _linkStatusLabel;
     private string _videoStatusLabel;
@@ -26,6 +30,9 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private bool _isBasicTab = true;
     private bool _isMessageTab;
     private bool _isDisplayTab;
+    private bool _isRecordingsTab;
+    private bool _isListeningForKey;
+    private string _recordKeyDisplayText;
     private string? _selectedTopic;
     private IReadOnlyList<string> _fields = [];
 
@@ -34,13 +41,19 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         VideoStreamStore videoStreamStore,
         AppSettings settings,
         AppRuntimeCoordinator runtimeCoordinator,
-        HudLayoutSettings hudLayoutSettings)
+        HudLayoutSettings hudLayoutSettings,
+        RecordingSettings recordingSettings,
+        ScreenRecorderService screenRecorder)
     {
         _telemetryStore = telemetryStore;
         _videoStreamStore = videoStreamStore;
         _settings = settings;
         _runtimeCoordinator = runtimeCoordinator;
         _hudLayoutSettings = hudLayoutSettings;
+        _recordingSettings = recordingSettings;
+        _screenRecorder = screenRecorder;
+
+        _recordKeyDisplayText = _recordingSettings.KeyBindingText;
 
         var snapshot = telemetryStore.CurrentSnapshot;
         _mqttStatusLabel = snapshot.MqttState.ToDisplayText();
@@ -114,6 +127,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
             {
                 IsMessageTab = false;
                 IsDisplayTab = false;
+                IsRecordingsTab = false;
             }
         }
     }
@@ -127,6 +141,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
             {
                 IsBasicTab = false;
                 IsDisplayTab = false;
+                IsRecordingsTab = false;
                 RefreshFields();
             }
         }
@@ -141,6 +156,21 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
             {
                 IsBasicTab = false;
                 IsMessageTab = false;
+                IsRecordingsTab = false;
+            }
+        }
+    }
+
+    public bool IsRecordingsTab
+    {
+        get => _isRecordingsTab;
+        set
+        {
+            if (SetProperty(ref _isRecordingsTab, value) && value)
+            {
+                IsBasicTab = false;
+                IsMessageTab = false;
+                IsDisplayTab = false;
             }
         }
     }
@@ -169,6 +199,127 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
 
     public string MatchInfoPanelBackgroundOpacityText =>
         $"{_hudLayoutSettings.MatchInfoPanelBackgroundOpacity:P0}";
+
+    public bool IsListeningForKey
+    {
+        get => _isListeningForKey;
+        set => SetProperty(ref _isListeningForKey, value);
+    }
+
+    public string RecordKeyDisplayText
+    {
+        get => _recordKeyDisplayText;
+        set => SetProperty(ref _recordKeyDisplayText, value);
+    }
+
+    public int RecCrf
+    {
+        get => _recordingSettings.Crf;
+        set
+        {
+            _recordingSettings.Crf = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public int RecFrameRate
+    {
+        get => _recordingSettings.FrameRate;
+        set
+        {
+            _recordingSettings.FrameRate = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string RecOutputDirectory
+    {
+        get => _recordingSettings.OutputDirectory;
+        set
+        {
+            _recordingSettings.OutputDirectory = value;
+            OnPropertyChanged();
+        }
+    }
+
+    public string RecStatusText
+    {
+        get
+        {
+            var status = _screenRecorder.GetStatus();
+            if (!status.IsRecording)
+            {
+                return "Idle";
+            }
+
+            var dur = FormatDuration(status.Duration);
+            var size = FormatFileSize(status.FileSizeBytes);
+            return $"Recording · {dur} · {size}";
+        }
+    }
+
+    public string RecStatusError
+    {
+        get
+        {
+            var status = _screenRecorder.GetStatus();
+            return status.Error ?? string.Empty;
+        }
+    }
+
+    public bool HasRecStatusError => !string.IsNullOrEmpty(RecStatusError);
+
+    public void StartKeyRebind()
+    {
+        IsListeningForKey = true;
+        RecordKeyDisplayText = "Press a key...";
+    }
+
+    [RelayCommand]
+    private void RebindKey()
+    {
+        StartKeyRebind();
+    }
+
+    public void OnKeyRebindCapture(KeyEventArgs e)
+    {
+        if (!IsListeningForKey) return;
+
+        if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt
+            or Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin)
+        {
+            return;
+        }
+
+        _recordingSettings.RecordKey = e.Key;
+        _recordingSettings.RecordModifiers = e.KeyModifiers;
+        RecordKeyDisplayText = _recordingSettings.KeyBindingText;
+        IsListeningForKey = false;
+    }
+
+    public void RefreshRecStatus()
+    {
+        OnPropertyChanged(nameof(RecStatusText));
+        OnPropertyChanged(nameof(RecStatusError));
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        return duration.TotalHours >= 1
+            ? duration.ToString(@"hh\:mm\:ss")
+            : duration.ToString(@"mm\:ss");
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        return bytes switch
+        {
+            >= 1_000_000_000 => $"{bytes / 1_000_000_000.0:F1} GB",
+            >= 1_000_000 => $"{bytes / 1_000_000.0:F1} MB",
+            >= 1_000 => $"{bytes / 1_000.0:F1} KB",
+            _ => $"{bytes} B"
+        };
+    }
 
     [RelayCommand]
     private async Task ApplyClientIdAsync()
