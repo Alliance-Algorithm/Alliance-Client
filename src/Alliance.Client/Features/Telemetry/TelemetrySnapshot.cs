@@ -1,3 +1,4 @@
+using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Shared.Models;
 using Alliance.Client.Shared.Utils;
 
@@ -324,6 +325,8 @@ public sealed record TelemetrySnapshot
     public IReadOnlyList<SpecialMechanismTelemetrySnapshot> ActiveMechanisms { get; init; } = [];
 
     public IReadOnlyList<RadarRobotTelemetrySnapshot> RadarRobots { get; init; } = [];
+
+    public EnemyRadarData? EnemyRadarData { get; init; }
 
     public IReadOnlyList<RobotBuffTelemetrySnapshot> ActiveBuffs { get; init; } = [];
 
