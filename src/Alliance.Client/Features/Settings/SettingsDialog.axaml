@@ -35,6 +35,11 @@
             <TextBlock Text="Display" FontSize="13" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
           </Border>
+          <Border x:Name="RecordingsNav" Classes="settings-nav-item"
+                  PointerPressed="OnRecordingsNavPressed" Cursor="Hand">
+            <TextBlock Text="Recordings" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+          </Border>
         </StackPanel>
       </Border>
 
@@ -191,6 +196,103 @@
                           Command="{Binding IncreaseMatchInfoPanelBackgroundOpacityCommand}" />
                 </Grid>
 
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Recordings 页面 -->
+        <StackPanel IsVisible="{Binding IsRecordingsTab}" Spacing="16" Margin="20,16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="KEY BINDING" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <TextBlock Text="Record Toggle" VerticalAlignment="Center"
+                           Foreground="{DynamicResource MutedTextBrush}"
+                           FontSize="12" />
+                <Border Grid.Column="1" Background="#1A2A33"
+                        CornerRadius="6" Padding="10,6"
+                        Cursor="Hand"
+                        PointerPressed="OnKeyBindPressed">
+                  <TextBlock Text="{Binding RecordKeyDisplayText}"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             FontFamily="{DynamicResource AppMono}"
+                             VerticalAlignment="Center" />
+                </Border>
+                <Button Grid.Column="2" Content="Rebind" Classes="settings-apply-btn"
+                        Command="{Binding RebindKeyCommand}" />
+              </Grid>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="RECORDING" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <StackPanel Spacing="12">
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                  <TextBlock Text="Output Dir" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <TextBox Grid.Column="1"
+                           Text="{Binding RecOutputDirectory}"
+                           Background="#1A2A33"
+                           Foreground="{DynamicResource TextBrush}"
+                           BorderBrush="#2D4657"
+                           BorderThickness="1"
+                           FontSize="12"
+                           FontFamily="{DynamicResource AppMono}" />
+                </Grid>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Quality (CRF)" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <Slider Grid.Column="1" Minimum="0" Maximum="51"
+                          Value="{Binding RecCrf}"
+                          VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding RecCrf}"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             Width="30" TextAlignment="Right" />
+                </Grid>
+
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock Text="Frame Rate" VerticalAlignment="Center"
+                             Foreground="{DynamicResource MutedTextBrush}"
+                             FontSize="12" />
+                  <Slider Grid.Column="1" Minimum="1" Maximum="60"
+                          Value="{Binding RecFrameRate}"
+                          VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Text="{Binding RecFrameRate, StringFormat='{}{0} fps'}"
+                             VerticalAlignment="Center"
+                             Foreground="{DynamicResource TextBrush}"
+                             FontSize="12" FontWeight="SemiBold"
+                             Width="50" TextAlignment="Right" />
+                </Grid>
+
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <StackPanel Spacing="6">
+            <TextBlock Text="STATUS" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <StackPanel Spacing="4">
+                <TextBlock Text="{Binding RecStatusText}"
+                           Foreground="{DynamicResource TextBrush}"
+                           FontSize="12" FontWeight="SemiBold"
+                           FontFamily="{DynamicResource AppMono}" />
+                <TextBlock Text="{Binding RecStatusError}"
+                           Foreground="#FF6B6B"
+                           FontSize="11"
+                           FontFamily="{DynamicResource AppMono}"
+                           IsVisible="{Binding HasRecStatusError}" />
               </StackPanel>
             </Border>
           </StackPanel>

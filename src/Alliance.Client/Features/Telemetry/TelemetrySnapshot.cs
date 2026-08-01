@@ -1,3 +1,4 @@
+using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Shared.Models;
 using Alliance.Client.Shared.Utils;
 
@@ -10,9 +11,8 @@ public sealed record TeamPanelSnapshot(
     string DamageText,
     string EconomyText,
     int? BaseHealthValue = null,
-    int? BaseMaxHealth = null,
+    int? BaseShieldValue = null,
     int? OutpostHealthValue = null,
-    int? OutpostMaxHealth = null,
     int? TotalDamage = null,
     int? RemainingEconomy = null,
     long? TotalEconomy = null,
@@ -29,17 +29,36 @@ public sealed record TeamPanelSnapshot(
             "ECO --");
     }
 
-    public double BaseHealthPercent =>
-        BaseHealthValue.HasValue && BaseMaxHealth is > 0
-            ? Math.Clamp((double)BaseHealthValue.Value / BaseMaxHealth.Value, 0, 1)
-            : 0;
+    public double BaseHpBarPercent
+    {
+        get
+        {
+            var hp = BaseHealthValue ?? 0;
+            var shield = BaseShieldValue ?? 0;
+            var total = hp + shield;
+            return total > 0 ? Math.Clamp((double)hp / total, 0, 1) : 0;
+        }
+    }
+
+    public double BaseShieldBarPercent
+    {
+        get
+        {
+            var hp = BaseHealthValue ?? 0;
+            var shield = BaseShieldValue ?? 0;
+            var total = hp + shield;
+            return total > 0 ? Math.Clamp((double)shield / total, 0, 1) : 0;
+        }
+    }
+
+    public bool HasBaseShield => (BaseShieldValue ?? 0) > 0;
 
     public double OutpostHealthPercent =>
-        OutpostHealthValue.HasValue && OutpostMaxHealth is > 0
-            ? Math.Clamp((double)OutpostHealthValue.Value / OutpostMaxHealth.Value, 0, 1)
+        OutpostHealthValue.HasValue
+            ? Math.Clamp(OutpostHealthValue.Value / 1500d, 0, 1)
             : 0;
 
-    public string BaseBarColorClass => BaseHealthPercent switch
+    public string BaseBarColorClass => BaseHpBarPercent switch
     {
         >= 0.6 => "healthy",
         >= 0.3 => "damaged",
@@ -73,13 +92,11 @@ public sealed record TeamPanelSnapshot(
         ? OutpostHealthValue.Value.ToString()
         : "--";
 
-    public string BaseHealthDisplay => BaseMaxHealth.HasValue
-        ? $"{BaseHealthNumber}/{BaseMaxHealth.Value}"
-        : $"{BaseHealthNumber}/--";
+    public string BaseHealthDisplay => BaseHealthValue.HasValue
+        ? $"{BaseHealthValue.Value}（{BaseShieldValue ?? 0}）"
+        : "--";
 
-    public string OutpostHealthDisplay => OutpostMaxHealth.HasValue
-        ? $"{OutpostHealthNumber}/{OutpostMaxHealth.Value}"
-        : $"{OutpostHealthNumber}/--";
+    public string OutpostHealthDisplay => OutpostHealthNumber;
 
     public string TeamColorClass => IsBlue ? "blue" : "red";
 }
@@ -101,6 +118,7 @@ public sealed record RobotStatusSnapshot(
     bool IsAlive = true,
     bool IsAerial = false,
     bool IsRadarLocked = false,
+    bool IsAirSupportCountered = false,
     IReadOnlyList<string>? BuffLabels = null)
 {
     public double HealthPercent =>
@@ -124,38 +142,31 @@ public sealed record RobotStatusSnapshot(
 
     public string StateText =>
         IsAerial
-            ? "空中单位"
+            ? (IsAirSupportCountered ? "【被反制】" : "空中单位")
             : IsAlive ? "ONLINE" : "已击毁";
 }
 
 public sealed record CurrentRobotPanelSnapshot(
     string RobotLabel,
     string HealthText,
-    string BuffText,
+    string PerformanceText,
     int? CurrentHealth = null,
     int? MaxHealth = null,
     int? Level = null,
     int? ExperienceForUpgrade = null,
-    int? RemainingAmmo = null,
-    int? CurrentChassisEnergy = null,
-    int? MaxChassisEnergy = null)
+    int? RemainingAmmo = null)
 {
     public static CurrentRobotPanelSnapshot Empty(string robotLabel)
     {
         return new CurrentRobotPanelSnapshot(
             robotLabel,
             "HP --/--",
-            "BUFF --");
+            "性能 --");
     }
 
     public double HealthPercent =>
         CurrentHealth.HasValue && MaxHealth is > 0
             ? Math.Clamp((double)CurrentHealth.Value / MaxHealth.Value, 0, 1)
-            : 0;
-
-    public double ChassisEnergyPercent =>
-        CurrentChassisEnergy.HasValue && MaxChassisEnergy is > 0
-            ? Math.Clamp((double)CurrentChassisEnergy.Value / MaxChassisEnergy.Value, 0, 1)
             : 0;
 
     public string LevelText => Level.HasValue ? $"Lv.{Level.Value}" : "Lv.--";
@@ -168,16 +179,78 @@ public sealed record CurrentRobotPanelSnapshot(
         ? $"允许发弹量: {RemainingAmmo.Value}"
         : "允许发弹量: --";
 
-    public string ChassisEnergyText => CurrentChassisEnergy.HasValue && MaxChassisEnergy.HasValue
-        ? $"剩余能量: {CurrentChassisEnergy.Value}/{MaxChassisEnergy.Value} J"
-        : "剩余能量: -- J";
-
     public string BarColorClass => HealthPercent switch
     {
         >= 0.6 => "healthy",
         >= 0.3 => "damaged",
         _ => "critical"
     };
+}
+
+public sealed record ReverseBuffLineSnapshot(
+    int BuffType,
+    string TypeLabel,
+    string ValueText,
+    int RemainingSeconds,
+    string DisplayText);
+
+public sealed record ReversePanelSnapshot(
+    IReadOnlyList<ReverseBuffLineSnapshot> BuffLines,
+    float? LastProjectileFireRate = null,
+    float? HeatCooldownRate = null,
+    float? CurrentHeat = null,
+    int? MaxHeat = null,
+    int? CurrentChassisEnergy = null,
+    int? MaxChassisEnergy = null)
+{
+    public static ReversePanelSnapshot Empty { get; } = new([]);
+
+    public bool HasBuffs => BuffLines.Count > 0;
+
+    public string FireRateText => LastProjectileFireRate.HasValue
+        ? LastProjectileFireRate.Value.ToString("0.##")
+        : "--";
+
+    public string HeatCooldownText => HeatCooldownRate.HasValue
+        ? $"{HeatCooldownRate.Value:0.##}/s"
+        : "--/s";
+
+    public string HeatValueText => CurrentHeat.HasValue || MaxHeat.HasValue
+        ? $"{CurrentHeat?.ToString("0.##") ?? "--"} | {MaxHeat?.ToString() ?? "--"}"
+        : "-- | --";
+
+    public double HeatPercent =>
+        CurrentHeat.HasValue && MaxHeat is > 0
+            ? Math.Clamp(CurrentHeat.Value / MaxHeat.Value, 0, 1)
+            : 0;
+
+    public string ChassisEnergyText => CurrentChassisEnergy.HasValue && MaxChassisEnergy.HasValue
+        ? $"{CurrentChassisEnergy.Value}/{MaxChassisEnergy.Value} J"
+        : "-- J";
+
+    public double ChassisEnergyPercent =>
+        CurrentChassisEnergy.HasValue && MaxChassisEnergy is > 0
+            ? Math.Clamp((double)CurrentChassisEnergy.Value / MaxChassisEnergy.Value, 0, 1)
+            : 0;
+}
+
+public enum SideAlertKind
+{
+    OutpostRebuildable,
+    OutpostRebuilding,
+    FortressCapture
+}
+
+public sealed record SideAlertSnapshot(
+    SideAlertKind Kind,
+    string Title,
+    double Progress,
+    bool ShowStageMark = false,
+    double StageMarkProgress = 0.5,
+    bool IsEnemy = false,
+    bool IsBlue = true)
+{
+    public bool ShowProgress => Kind is SideAlertKind.OutpostRebuilding or SideAlertKind.FortressCapture;
 }
 
 public sealed record EventTelemetrySnapshot(
@@ -237,11 +310,23 @@ public sealed record TelemetrySnapshot
     public CurrentRobotPanelSnapshot CurrentRobot { get; init; } =
         CurrentRobotPanelSnapshot.Empty("Robot --");
 
+    public ReversePanelSnapshot ReversePanel { get; init; } = ReversePanelSnapshot.Empty;
+
+    public IReadOnlyList<SideAlertSnapshot> AllySideAlerts { get; init; } = [];
+
+    public IReadOnlyList<SideAlertSnapshot> EnemySideAlerts { get; init; } = [];
+
+    public bool ShowBaseAttackToast { get; init; }
+
+    public string BaseAttackToastText { get; init; } = "基地遭到攻击";
+
     public EventTelemetrySnapshot? LatestEvent { get; init; }
 
     public IReadOnlyList<SpecialMechanismTelemetrySnapshot> ActiveMechanisms { get; init; } = [];
 
     public IReadOnlyList<RadarRobotTelemetrySnapshot> RadarRobots { get; init; } = [];
+
+    public EnemyRadarData? EnemyRadarData { get; init; }
 
     public IReadOnlyList<RobotBuffTelemetrySnapshot> ActiveBuffs { get; init; } = [];
 
@@ -292,7 +377,7 @@ public sealed record TelemetrySnapshot
             new RobotStatusSnapshot("3", "--", "--", "--"),
             new RobotStatusSnapshot("4", "--", "--", "--"),
             new RobotStatusSnapshot("7", "--", "--", "--"),
-            new RobotStatusSnapshot("6", "--", "--", "--", ShowHealthBar: false)
+            new RobotStatusSnapshot("6", "--", "--", "--", ShowHealthBar: false, IsAerial: true)
         ];
     }
 }

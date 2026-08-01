@@ -1,0 +1,46 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:telemetry="using:Alliance.Client.Features.Telemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.SideAlertStack"
+             x:CompileBindings="False"
+             mc:Ignorable="d">
+  <ItemsControl ItemsSource="{Binding}">
+    <ItemsControl.ItemsPanel>
+      <ItemsPanelTemplate>
+        <StackPanel Spacing="4" />
+      </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+      <DataTemplate DataType="telemetry:SideAlertSnapshot">
+        <Border Classes="hud-side-alert">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="hud-side-alert-title"
+                       Text="{Binding Title}"
+                       TextWrapping="Wrap" />
+            <Grid IsVisible="{Binding ShowProgress}">
+              <Border x:Name="AlertBarBg" Classes="hud-side-alert-bar-bg">
+                <Border Classes="hud-side-alert-bar-fill"
+                        Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}"
+                        HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Progress" />
+                      <Binding Path="#AlertBarBg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-side-alert-stage"
+                      IsVisible="{Binding ShowStageMark}"
+                      HorizontalAlignment="Center"
+                      Width="2" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </DataTemplate>
+    </ItemsControl.ItemTemplate>
+  </ItemsControl>
+</UserControl>

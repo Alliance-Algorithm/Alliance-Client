@@ -1,9 +1,9 @@
 <!--
 HudOverlay - HUD主控件（整体布局容器）
 
-整体布局向视觉稿靠拢：
+整体布局：
 中上：我方机器人 | 顶部状态条 + 16:9 视频图传 | 敌方机器人
-底部：当前机器人 | RESERVED | MAP | EVENTS
+底部：当前机器人 | Reverse(Buff+弹速热量能量) | MAP | EVENTS
 
 IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主窗口按钮。
 -->
@@ -23,7 +23,6 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
         ColumnDefinitions="2*,6*,2*"
         RowSpacing="4" ColumnSpacing="4" Margin="16">
 
-    <!-- ===== 中上：我方机器人 / 中央状态条 + 16:9 视频图传 / 敌方机器人 ===== -->
     <vm:RobotStatusBar Grid.Row="0" Grid.Column="0"
                        DataContext="{Binding AllyRobotsViewModel}" />
 
@@ -78,16 +77,31 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
 
+            <!-- 顶部基地攻击 toast -->
+            <Border Classes="hud-base-attack-toast"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="0,12,0,0"
+                    IsVisible="{Binding Snapshot.ShowBaseAttackToast}">
+              <TextBlock Classes="hud-base-attack-toast-text"
+                         Text="{Binding Snapshot.BaseAttackToastText}" />
+            </Border>
+
+            <!-- 赛场信息 + 侧边 alert -->
             <Grid VerticalAlignment="Top" Margin="12"
                   ColumnDefinitions="*,*" ColumnSpacing="8">
-              <vm:TeamPanel x:Name="AllyTeamPanel"
-                            Grid.Column="0"
-                            HorizontalAlignment="Left"
-                            DataContext="{Binding Snapshot.AllyTeam}" />
-              <vm:TeamPanel x:Name="EnemyTeamPanel"
-                            Grid.Column="1"
-                            HorizontalAlignment="Right"
-                            DataContext="{Binding Snapshot.EnemyTeam}" />
+              <StackPanel Grid.Column="0" Spacing="4" HorizontalAlignment="Left" MaxWidth="280">
+                <vm:TeamPanel x:Name="AllyTeamPanel"
+                              HorizontalAlignment="Stretch"
+                              DataContext="{Binding Snapshot.AllyTeam}" />
+                <vm:SideAlertStack DataContext="{Binding Snapshot.AllySideAlerts}" />
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="4" HorizontalAlignment="Right" MaxWidth="280">
+                <vm:TeamPanel x:Name="EnemyTeamPanel"
+                              HorizontalAlignment="Stretch"
+                              DataContext="{Binding Snapshot.EnemyTeam}" />
+                <vm:SideAlertStack DataContext="{Binding Snapshot.EnemySideAlerts}" />
+              </StackPanel>
             </Grid>
 
             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12" Spacing="2">
@@ -102,25 +116,16 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
     <vm:RobotStatusBar Grid.Row="0" Grid.Column="2"
                        DataContext="{Binding EnemyRobotsViewModel}" />
 
-    <!-- ===== 底部：当前机器人 / 预留 / 地图 / 事件 ===== -->
     <Grid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3"
           RowDefinitions="*" ColumnDefinitions="*,*,*,*"
           ColumnSpacing="4">
 
-      <!-- 左下：当前机器人面板 (2x2) -->
       <vm:CurrentRobotPanel Grid.Column="0"
                             DataContext="{Binding Snapshot.CurrentRobot}" />
 
-      <!-- 中左下：预留区域 (2x2) -->
-      <Border Grid.Column="1"
-              Classes="hud-panel" VerticalAlignment="Stretch">
-        <StackPanel Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Center">
-          <TextBlock Classes="hud-caption" Text="RESERVED" HorizontalAlignment="Center" />
-          <TextBlock Classes="hud-detail" Text="--" HorizontalAlignment="Center" />
-        </StackPanel>
-      </Border>
+      <vm:ReversePanel Grid.Column="1"
+                       DataContext="{Binding Snapshot.ReversePanel}" />
 
-      <!-- 中右下：地图面板 (2x2) -->
       <Border Grid.Column="2"
               Classes="hud-panel" VerticalAlignment="Stretch">
         <StackPanel Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Center">
@@ -129,7 +134,6 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
         </StackPanel>
       </Border>
 
-      <!-- 右下：赛场事件消息面板 (2x2) -->
       <Border Grid.Column="3"
               Classes="hud-panel" VerticalAlignment="Stretch">
         <StackPanel Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Center">

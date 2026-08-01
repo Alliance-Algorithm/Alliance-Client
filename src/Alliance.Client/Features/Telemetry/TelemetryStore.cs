@@ -1,4 +1,5 @@
 using System.Globalization;
+using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
@@ -32,11 +33,16 @@ public sealed class TelemetryStore : ObservableObject
     private List<MechanismState> _activeMechanisms = [];
     private Dictionary<BuffKey, BuffState> _activeBuffs = [];
     private List<RadarSlotState> _radarSlots = [];
+    private EnemyRadarData? _enemyRadarData;
     private byte[]? _customByteBlockData;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
     private string? _startupWarning;
     private string? _mqttNote;
+    private bool _enemyAirSupportCountered;
+    private DateTimeOffset? _baseAttackToastUntil;
+    private readonly OutpostRebuildTracker _allyOutpostRebuild = new();
+    private readonly OutpostRebuildTracker _enemyOutpostRebuild = new();
 
     public TelemetryStore(AppSettings settings, RmcsImageProcessor rmcsImageProcessor)
     {
@@ -214,10 +220,7 @@ public sealed class TelemetryStore : ObservableObject
     {
         lock (_gate)
         {
-            _latestEvent = new EventState(
-                status.EventId,
-                status.Param,
-                BuildEventSummary(status.EventId, status.Param));
+            ApplyEventLocked(status, DateTimeOffset.UtcNow);
             MarkTelemetryReceivedLocked();
         }
     }
@@ -275,6 +278,21 @@ public sealed class TelemetryStore : ObservableObject
 
     public void ProcessCustomByteBlockImage(byte[] data)
     {
+        if (data.Length > 0 && data[0] == 0x03)
+        {
+            var result = RadarByteParser.Parse(data.AsSpan(1));
+            if (result is not null)
+            {
+                lock (_gate)
+                {
+                    _enemyRadarData = result;
+                    _lastTelemetryAt = DateTimeOffset.UtcNow;
+                    PublishSnapshotLocked();
+                }
+            }
+            return;
+        }
+
         _rmcsImageProcessor.Feed(data);
     }
 
@@ -322,10 +340,7 @@ public sealed class TelemetryStore : ObservableObject
 
             foreach (var status in batch.Events)
             {
-                _latestEvent = new EventState(
-                    status.EventId,
-                    status.Param,
-                    BuildEventSummary(status.EventId, status.Param));
+                ApplyEventLocked(status, batch.ReceivedAt);
             }
 
             if (batch.RobotStaticStatus is not null)
@@ -354,6 +369,27 @@ public sealed class TelemetryStore : ObservableObject
             }
 
             MarkTelemetryReceivedLocked(batch.ReceivedAt);
+        }
+    }
+
+    private void ApplyEventLocked(Event status, DateTimeOffset receivedAt)
+    {
+        _latestEvent = new EventState(
+            status.EventId,
+            status.Param,
+            BuildEventSummary(status.EventId, status.Param));
+
+        switch (status.EventId)
+        {
+            case 7:
+                _enemyAirSupportCountered = false;
+                break;
+            case 8:
+                _enemyAirSupportCountered = true;
+                break;
+            case 11:
+                _baseAttackToastUntil = receivedAt.AddSeconds(5);
+                break;
         }
     }
 
@@ -414,17 +450,24 @@ public sealed class TelemetryStore : ObservableObject
             }
 
             RemoveExpiredStateLocked(now);
+            UpdateOutpostRebuildTrackersLocked(now);
 
             var nextBuffs = BuildActiveBuffSnapshots(now);
             var nextMechanisms = BuildMechanismSnapshots(now);
+            var showToast = IsBaseAttackToastVisible(now);
             var shouldPublish = BuildLinkState(now) != CurrentSnapshot.LinkState ||
                                 BuildWarningText(now) != CurrentSnapshot.WarningText ||
                                 BuildLastUpdateText(now) != CurrentSnapshot.LastUpdateText ||
+                                showToast != CurrentSnapshot.ShowBaseAttackToast ||
                                 !CurrentSnapshot.ActiveBuffs.SequenceEqual(nextBuffs) ||
-                                !CurrentSnapshot.ActiveMechanisms.SequenceEqual(nextMechanisms);
+                                !CurrentSnapshot.ActiveMechanisms.SequenceEqual(nextMechanisms) ||
+                                _allyOutpostRebuild.IsDirty ||
+                                _enemyOutpostRebuild.IsDirty;
 
             if (shouldPublish)
             {
+                _allyOutpostRebuild.IsDirty = false;
+                _enemyOutpostRebuild.IsDirty = false;
                 PublishSnapshotLocked(now, nextBuffs, nextMechanisms);
             }
         }
@@ -448,6 +491,7 @@ public sealed class TelemetryStore : ObservableObject
 
     private void PublishSnapshotLocked(DateTimeOffset now)
     {
+        UpdateOutpostRebuildTrackersLocked(now);
         PublishSnapshotLocked(now, BuildActiveBuffSnapshots(now), BuildMechanismSnapshots(now));
     }
 
@@ -461,8 +505,9 @@ public sealed class TelemetryStore : ObservableObject
 
     private TelemetrySnapshot BuildSnapshot()
     {
-        return BuildSnapshot(DateTimeOffset.UtcNow, BuildActiveBuffSnapshots(DateTimeOffset.UtcNow),
-            BuildMechanismSnapshots(DateTimeOffset.UtcNow));
+        var now = DateTimeOffset.UtcNow;
+        UpdateOutpostRebuildTrackersLocked(now);
+        return BuildSnapshot(now, BuildActiveBuffSnapshots(now), BuildMechanismSnapshots(now));
     }
 
     private TelemetrySnapshot BuildSnapshot(
@@ -485,12 +530,14 @@ public sealed class TelemetryStore : ObservableObject
             AllyTeam = BuildTeamPanel(
                 "ALLY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.BaseHealth,
+                _globalUnitStatus is null ? null : (int)_globalUnitStatus.BaseShield,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.OutpostHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageAlly,
                 isBlue: _isOwnTeamBlue),
             EnemyTeam = BuildTeamPanel(
                 "ENEMY",
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyBaseHealth,
+                _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyBaseShield,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.EnemyOutpostHealth,
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy,
                 isEnemy: true,
@@ -498,6 +545,11 @@ public sealed class TelemetryStore : ObservableObject
             AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs, radarRobots),
             EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs, radarRobots),
             CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
+            ReversePanel = BuildReversePanel(now, activeBuffs),
+            AllySideAlerts = BuildSideAlerts(isEnemy: false, now, activeMechanisms),
+            EnemySideAlerts = BuildSideAlerts(isEnemy: true, now, activeMechanisms),
+            ShowBaseAttackToast = IsBaseAttackToastVisible(now),
+            EnemyRadarData = _enemyRadarData,
             LatestEvent = _latestEvent is null
                 ? null
                 : new EventTelemetrySnapshot(_latestEvent.EventId, _latestEvent.RawParam, _latestEvent.SummaryText),
@@ -512,13 +564,18 @@ public sealed class TelemetryStore : ObservableObject
     private TeamPanelSnapshot BuildTeamPanel(
         string sideLabel,
         int? baseHealth,
+        int? baseShield,
         int? outpostHealth,
         int? damage,
         bool isEnemy = false,
         bool isBlue = true)
     {
-        var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
-        var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
+        int? remainingEconomy = isEnemy
+            ? (_enemyRadarData is not null ? (int?)_enemyRadarData.EnemyRemainingGold : null)
+            : (_globalLogisticsStatus is not null ? (int)_globalLogisticsStatus.RemainingEconomy : (int?)null);
+        long? totalEconomy = isEnemy
+            ? (_enemyRadarData is not null ? (long?)_enemyRadarData.EnemyTotalGold : null)
+            : (_globalLogisticsStatus is not null ? (long)_globalLogisticsStatus.TotalEconomyObtained : (long?)null);
 
         return new TeamPanelSnapshot(
             sideLabel,
@@ -527,9 +584,8 @@ public sealed class TelemetryStore : ObservableObject
             damage.HasValue ? TelemetryText.FormatDamage(damage.Value) : "DMG --",
             FormatEconomy(remainingEconomy, totalEconomy),
             baseHealth,
-            5000,
+            baseShield,
             outpostHealth,
-            1500,
             damage,
             remainingEconomy,
             totalEconomy,
@@ -579,7 +635,9 @@ public sealed class TelemetryStore : ObservableObject
             var slotLabel = RobotSlots[index];
             var relativeRobotId = VisibleRobotSlotIds[index];
             var health = TryReadRobotHealth(isAllyTeam, relativeRobotId);
-            var bullets = TryReadRobotBullets(isAllyTeam, relativeRobotId);
+            var bullets = isAllyTeam
+                ? TryReadRobotBullets(isAllyTeam, relativeRobotId)
+                : TryReadEnemyRobotBullets(relativeRobotId);
             var absoluteRobotId = ResolveTeamRobotId(relativeRobotId, isAllyTeam);
             var showHealthBar = relativeRobotId != 6;
             var isAerial = relativeRobotId == 6;
@@ -593,7 +651,7 @@ public sealed class TelemetryStore : ObservableObject
                 bullets?.ToString(CultureInfo.InvariantCulture) ?? "--",
                 BuildRobotBuffSummary(buffLabels),
                 health,
-                500,
+                300,
                 bullets,
                 showHealthBar,
                 IsEnemy: !isAllyTeam,
@@ -606,6 +664,7 @@ public sealed class TelemetryStore : ObservableObject
                 IsAlive: isAlive,
                 IsAerial: isAerial,
                 IsRadarLocked: isRadarLocked,
+                IsAirSupportCountered: !isAllyTeam && isAerial && _enemyAirSupportCountered,
                 BuffLabels: buffLabels));
         }
 
@@ -651,37 +710,227 @@ public sealed class TelemetryStore : ObservableObject
         return _globalUnitStatus.RobotBullets[index];
     }
 
+    private int? TryReadEnemyRobotBullets(int relativeRobotId)
+    {
+        if (_enemyRadarData is null)
+            return null;
+
+        return relativeRobotId switch
+        {
+            1 => _enemyRadarData.HeroBullets,
+            3 => _enemyRadarData.Infantry3Bullets,
+            4 => _enemyRadarData.Infantry4Bullets,
+            6 => _enemyRadarData.AerialBullets,
+            7 => _enemyRadarData.SentinelBullets,
+            _ => null
+        };
+    }
+
     private CurrentRobotPanelSnapshot BuildCurrentRobotPanel(IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs)
     {
-        var robotId = _robotStaticStatus?.RobotId is > 0
-            ? (int)_robotStaticStatus.RobotId
-            : _configuredRobotId;
+        var robotId = ResolveCurrentRobotId();
         var currentHealth = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.CurrentHealth;
         var maxHealth = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.MaxHealth;
         var level = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.Level;
         var expForUpgrade = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.ExperienceForUpgrade;
         var remainingAmmo = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.RemainingAmmo;
-        var currentChassisEnergy = _robotDynamicStatus is null ? (int?)null : (int)_robotDynamicStatus.CurrentChassisEnergy;
-        var maxChassisEnergy = _robotStaticStatus is null ? (int?)null : (int)_robotStaticStatus.MaxChassisEnergy;
 
         return new CurrentRobotPanelSnapshot(
-            BuildRobotLabel(robotId),
+            BuildRobotDisplayName(robotId),
             currentHealth.HasValue || maxHealth.HasValue
                 ? TelemetryText.FormatHealth(currentHealth ?? 0, maxHealth ?? 0)
                 : "HP --/--",
-            robotId.HasValue ? BuildRobotBuffSummary(activeBuffs, robotId.Value, maxEntries: int.MaxValue) : "BUFF --",
+            BuildPerformanceText(
+                _robotStaticStatus is null ? null : (int)_robotStaticStatus.PerformanceSystemShooter,
+                _robotStaticStatus is null ? null : (int)_robotStaticStatus.PerformanceSystemChassis),
             currentHealth,
             maxHealth,
             level,
             expForUpgrade,
-            remainingAmmo,
-            currentChassisEnergy,
-            maxChassisEnergy);
+            remainingAmmo);
     }
 
-    private static string BuildRobotLabel(int? robotId)
+    private ReversePanelSnapshot BuildReversePanel(
+        DateTimeOffset now,
+        IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs)
     {
-        return robotId.HasValue ? $"Robot {robotId.Value}" : "Robot --";
+        var robotId = ResolveCurrentRobotId();
+        var buffLines = robotId.HasValue
+            ? BuildReverseBuffLines(activeBuffs, robotId.Value)
+            : [];
+
+        return new ReversePanelSnapshot(
+            buffLines,
+            _robotDynamicStatus?.LastProjectileFireRate,
+            _robotStaticStatus?.HeatCooldownRate,
+            _robotDynamicStatus?.CurrentHeat,
+            _robotStaticStatus is null ? null : (int)_robotStaticStatus.MaxHeat,
+            _robotDynamicStatus is null ? null : (int)_robotDynamicStatus.CurrentChassisEnergy,
+            _robotStaticStatus is null ? null : (int)_robotStaticStatus.MaxChassisEnergy);
+    }
+
+    private int? ResolveCurrentRobotId()
+    {
+        return _robotStaticStatus?.RobotId is > 0
+            ? (int)_robotStaticStatus.RobotId
+            : _configuredRobotId;
+    }
+
+    private static string BuildRobotDisplayName(int? robotId)
+    {
+        if (!robotId.HasValue)
+        {
+            return "机器人 --";
+        }
+
+        var id = robotId.Value;
+        var isBlue = id >= 100;
+        var relativeId = isBlue ? id - 100 : id;
+        var side = isBlue ? "蓝方" : "红方";
+        return $"{side}{relativeId}号-{BuildRobotTypeText(relativeId)}";
+    }
+
+    private static string BuildPerformanceText(int? shooter, int? chassis)
+    {
+        var shooterText = FormatShooterPerformance(shooter);
+        var chassisText = FormatChassisPerformance(chassis);
+        if (shooterText is null && chassisText is null)
+        {
+            return "性能 --";
+        }
+
+        return $"{shooterText ?? "--"} / {chassisText ?? "--"}";
+    }
+
+    private static string? FormatShooterPerformance(int? value)
+    {
+        return value switch
+        {
+            1 => "冷却优先",
+            2 => "爆发优先",
+            3 => "英雄近战",
+            4 => "英雄远程",
+            _ => null
+        };
+    }
+
+    private static string? FormatChassisPerformance(int? value)
+    {
+        return value switch
+        {
+            1 => "血量优先",
+            2 => "功率优先",
+            3 => "英雄近战",
+            4 => "英雄远程",
+            _ => null
+        };
+    }
+
+    private static IReadOnlyList<ReverseBuffLineSnapshot> BuildReverseBuffLines(
+        IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs,
+        int robotId)
+    {
+        return activeBuffs
+            .Where(buff => buff.RobotId == robotId && IsDisplayBuffType(buff.BuffType))
+            .OrderBy(buff => buff.BuffType)
+            .Select(buff =>
+            {
+                var typeLabel = GetBuffTypeLabel(buff.BuffType);
+                var valueText = FormatReverseBuffValue(buff.BuffType, buff.BuffLevel);
+                return new ReverseBuffLineSnapshot(
+                    buff.BuffType,
+                    typeLabel,
+                    valueText,
+                    buff.RemainingSeconds,
+                    $"【{typeLabel}】{valueText}（{buff.RemainingSeconds}s）");
+            })
+            .ToArray();
+    }
+
+    private static bool IsDisplayBuffType(int buffType) => buffType is 1 or 2 or 3 or 5;
+
+    private static string GetBuffTypeLabel(int buffType)
+    {
+        return buffType switch
+        {
+            1 => "攻击",
+            2 => "防御",
+            3 => "冷却",
+            5 => "回血",
+            _ => $"类型{buffType}"
+        };
+    }
+
+    private static string FormatReverseBuffValue(int buffType, int buffLevel)
+    {
+        var sign = buffLevel > 0 ? "+" : string.Empty;
+        return buffType switch
+        {
+            1 or 2 or 5 => $"{sign}{buffLevel}%",
+            3 => $"{sign}{buffLevel}",
+            _ => $"{sign}{buffLevel}"
+        };
+    }
+
+    private IReadOnlyList<SideAlertSnapshot> BuildSideAlerts(
+        bool isEnemy,
+        DateTimeOffset now,
+        IReadOnlyList<SpecialMechanismTelemetrySnapshot> activeMechanisms)
+    {
+        var alerts = new List<SideAlertSnapshot>(3);
+        var isBlue = isEnemy ? !_isOwnTeamBlue : _isOwnTeamBlue;
+        var tracker = isEnemy ? _enemyOutpostRebuild : _allyOutpostRebuild;
+
+        if (tracker.ShowRebuildable)
+        {
+            alerts.Add(new SideAlertSnapshot(
+                SideAlertKind.OutpostRebuildable,
+                isEnemy ? "对方前哨站可重建" : "己方前哨站可重建",
+                Progress: 0,
+                IsEnemy: isEnemy,
+                IsBlue: isBlue));
+        }
+
+        if (tracker.ShowRebuilding)
+        {
+            var progress = Math.Clamp(tracker.RebuildElapsedSeconds / 10d, 0, 1);
+            alerts.Add(new SideAlertSnapshot(
+                SideAlertKind.OutpostRebuilding,
+                isEnemy ? "对方前哨站重建中" : "己方前哨站重建中",
+                progress,
+                ShowStageMark: true,
+                StageMarkProgress: 0.5,
+                IsEnemy: isEnemy,
+                IsBlue: isBlue));
+        }
+
+        var mechanismId = isEnemy ? 2 : 1;
+        var mechanism = activeMechanisms.FirstOrDefault(m => m.MechanismId == mechanismId);
+        if (mechanism is not null)
+        {
+            var progress = Math.Clamp(1d - mechanism.RemainingSeconds / 20d, 0, 1);
+            alerts.Add(new SideAlertSnapshot(
+                SideAlertKind.FortressCapture,
+                isEnemy ? "对方堡垒正在被占领" : "己方堡垒正在被占领",
+                progress,
+                IsEnemy: isEnemy,
+                IsBlue: isBlue));
+        }
+
+        return alerts;
+    }
+
+    private bool IsBaseAttackToastVisible(DateTimeOffset now)
+    {
+        return _baseAttackToastUntil.HasValue && now < _baseAttackToastUntil.Value;
+    }
+
+    private void UpdateOutpostRebuildTrackersLocked(DateTimeOffset now)
+    {
+        var allyStatus = _globalUnitStatus is null ? (int?)null : (int)_globalUnitStatus.OutpostStatus;
+        var enemyStatus = _globalUnitStatus is null ? (int?)null : (int)_globalUnitStatus.EnemyOutpostStatus;
+        _allyOutpostRebuild.Update(allyStatus, now);
+        _enemyOutpostRebuild.Update(enemyStatus, now);
     }
 
     private ConnectionState BuildLinkState(DateTimeOffset now)
@@ -749,6 +998,11 @@ public sealed class TelemetryStore : ObservableObject
         _activeBuffs = _activeBuffs
             .Where(entry => GetRemainingSeconds(now, entry.Value.InitialSeconds, entry.Value.ReceivedAt) > 0)
             .ToDictionary(entry => entry.Key, entry => entry.Value);
+
+        if (_baseAttackToastUntil.HasValue && now >= _baseAttackToastUntil.Value)
+        {
+            _baseAttackToastUntil = null;
+        }
     }
 
     private IReadOnlyList<RobotBuffTelemetrySnapshot> BuildActiveBuffSnapshots(DateTimeOffset now)
@@ -1011,6 +1265,67 @@ public sealed class TelemetryStore : ObservableObject
         int MaxSeconds,
         int InitialSeconds,
         DateTimeOffset ReceivedAt);
+
+    private sealed class OutpostRebuildTracker
+    {
+        private DateTimeOffset? _rebuildStartedAt;
+        private DateTimeOffset? _leftRebuildingAt;
+        private bool _showRebuildable;
+        private bool _showRebuilding;
+        private double _rebuildElapsedSeconds;
+
+        public bool ShowRebuildable => _showRebuildable;
+        public bool ShowRebuilding => _showRebuilding;
+        public double RebuildElapsedSeconds => _rebuildElapsedSeconds;
+        public bool IsDirty { get; set; }
+
+        public void Update(int? status, DateTimeOffset now)
+        {
+            var prevRebuildable = _showRebuildable;
+            var prevRebuilding = _showRebuilding;
+            var prevElapsed = _rebuildElapsedSeconds;
+
+            _showRebuildable = status == 4;
+
+            if (status == 5)
+            {
+                _leftRebuildingAt = null;
+                _rebuildStartedAt ??= now;
+                _showRebuilding = true;
+                _rebuildElapsedSeconds = Math.Min(10d, (now - _rebuildStartedAt.Value).TotalSeconds);
+            }
+            else
+            {
+                if (_showRebuilding || _rebuildStartedAt.HasValue)
+                {
+                    _leftRebuildingAt ??= now;
+                    if ((now - _leftRebuildingAt.Value).TotalSeconds >= 1)
+                    {
+                        _rebuildStartedAt = null;
+                        _leftRebuildingAt = null;
+                        _showRebuilding = false;
+                        _rebuildElapsedSeconds = 0;
+                    }
+                    else if (_rebuildStartedAt.HasValue)
+                    {
+                        _rebuildElapsedSeconds = Math.Min(10d, (now - _rebuildStartedAt.Value).TotalSeconds);
+                    }
+                }
+                else
+                {
+                    _showRebuilding = false;
+                    _rebuildElapsedSeconds = 0;
+                }
+            }
+
+            if (prevRebuildable != _showRebuildable ||
+                prevRebuilding != _showRebuilding ||
+                Math.Abs(prevElapsed - _rebuildElapsedSeconds) > 0.05)
+            {
+                IsDirty = true;
+            }
+        }
+    }
 
     private sealed record RadarSlotState(
         int SlotIndex,

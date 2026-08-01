@@ -12,6 +12,8 @@ public sealed class AppSettings
 
     public HudSettings Hud { get; set; } = new();
 
+    public RecordingSettings Recording { get; set; } = new();
+
     public sealed class MqttSettings
     {
         public string Host { get; set; } = "192.168.12.1";
@@ -57,5 +59,18 @@ public sealed class AppSettings
         public double RobotWidthScale { get; set; } = 0.8;
 
         public double MatchInfoPanelBackgroundOpacity { get; set; } = 0.8;
+    }
+
+    public sealed class RecordingSettings
+    {
+        public string OutputDirectory { get; set; } = "~/Downloads";
+
+        public int Crf { get; set; } = 23;
+
+        public int FrameRate { get; set; } = 30;
+
+        public string RecordKey { get; set; } = "R";
+
+        public string RecordModifiers { get; set; } = "Control";
     }
 }

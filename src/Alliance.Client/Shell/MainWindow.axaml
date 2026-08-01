@@ -8,6 +8,7 @@
         x:DataType="vm:MainWindowViewModel"
         Width="1360"
         Height="820"
+        WindowState="FullScreen"
         MinWidth="1024"
         MinHeight="640"
         Title="{Binding WindowTitle}"
@@ -45,6 +46,15 @@
                      FontSize="11" FontWeight="SemiBold"
                      FontFamily="{DynamicResource AppMono}"
                      Foreground="{DynamicResource TextBrush}"
+                     VerticalAlignment="Center" />
+        </Border>
+
+        <Border Classes="settings-btn"
+                PointerPressed="OnRecordPressed">
+          <TextBlock Text="{Binding Recorder.RecButtonText}"
+                     FontSize="11" FontWeight="SemiBold"
+                     FontFamily="{DynamicResource AppMono}"
+                     Foreground="{DynamicResource AccentBrush}"
                      VerticalAlignment="Center" />
         </Border>
       </StackPanel>
