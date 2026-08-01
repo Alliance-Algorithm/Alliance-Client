@@ -1,12 +1,26 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Alliance.Client.Features.ScreenRecording;
-using Avalonia.Platform;
 using Microsoft.Extensions.Logging;
 
 namespace Alliance.Client.Features.ScreenRecording;
 
 public sealed class ScreenRecorderService
 {
+    private const string LibX11 = "libX11.so.6";
+
+    [DllImport(LibX11)]
+    private static extern IntPtr XOpenDisplay(IntPtr display);
+
+    [DllImport(LibX11)]
+    private static extern int XDisplayWidth(IntPtr display, int screen);
+
+    [DllImport(LibX11)]
+    private static extern int XDisplayHeight(IntPtr display, int screen);
+
+    [DllImport(LibX11)]
+    private static extern int XCloseDisplay(IntPtr display);
+
     private readonly RecordingSettings _settings;
     private readonly ILogger<ScreenRecorderService> _logger;
     private Process? _process;
@@ -197,17 +211,21 @@ public sealed class ScreenRecorderService
 
     private static (int Width, int Height) GetScreenBounds()
     {
-        var screens = Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop
-            ? desktop.MainWindow?.Screens
-            : null;
-
-        if (screens?.Primary is { } primary)
+        try
         {
-            var bounds = primary.Bounds;
-            return ((int)bounds.Width, (int)bounds.Height);
-        }
+            var display = XOpenDisplay(IntPtr.Zero);
+            if (display == IntPtr.Zero)
+                return (1920, 1080);
 
-        return (1920, 1080);
+            var w = XDisplayWidth(display, 0);
+            var h = XDisplayHeight(display, 0);
+            XCloseDisplay(display);
+            return (w, h);
+        }
+        catch
+        {
+            return (1920, 1080);
+        }
     }
 
     private static string ResolveFfmpegPath()
