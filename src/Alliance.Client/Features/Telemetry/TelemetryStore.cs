@@ -552,8 +552,13 @@ public sealed class TelemetryStore : ObservableObject
         bool isEnemy = false,
         bool isBlue = true)
     {
-        var remainingEconomy = _globalLogisticsStatus is null ? (int?)null : (int)_globalLogisticsStatus.RemainingEconomy;
-        var totalEconomy = _globalLogisticsStatus is null ? (long?)null : (long)_globalLogisticsStatus.TotalEconomyObtained;
+        // GlobalLogisticsStatus is ally-only. Enemy panel must not reuse ally economy.
+        int? remainingEconomy = !isEnemy && _globalLogisticsStatus is not null
+            ? (int)_globalLogisticsStatus.RemainingEconomy
+            : null;
+        long? totalEconomy = !isEnemy && _globalLogisticsStatus is not null
+            ? (long)_globalLogisticsStatus.TotalEconomyObtained
+            : null;
 
         return new TeamPanelSnapshot(
             sideLabel,
@@ -627,7 +632,7 @@ public sealed class TelemetryStore : ObservableObject
                 bullets?.ToString(CultureInfo.InvariantCulture) ?? "--",
                 BuildRobotBuffSummary(buffLabels),
                 health,
-                500,
+                300,
                 bullets,
                 showHealthBar,
                 IsEnemy: !isAllyTeam,

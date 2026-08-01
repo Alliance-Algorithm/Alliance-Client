@@ -48,6 +48,11 @@ public sealed class TelemetryMappingTests
             RobotHealth = { 100, 0, 300, 400, 700, 101, 202, 303, 404, 707 },
             RobotBullets = { 12, 23, 34, 45, 67, 88 }
         });
+        store.ApplyGlobalLogisticsStatus(new GlobalLogisticsStatus
+        {
+            RemainingEconomy = 420,
+            TotalEconomyObtained = 1800
+        });
         store.ApplyRobotStaticStatus(new RobotStaticStatus
         {
             RobotId = 1,
@@ -81,6 +86,10 @@ public sealed class TelemetryMappingTests
         Assert.Equal(1500d / 1650d, snapshot.AllyTeam.BaseHpBarPercent, 5);
         Assert.Equal(150d / 1650d, snapshot.AllyTeam.BaseShieldBarPercent, 5);
         Assert.Equal("DMG 345", snapshot.AllyTeam.DamageText);
+        Assert.Equal("当前经济: 420 | 累计经济: 1800", snapshot.AllyTeam.EconomyDisplayText);
+        Assert.Equal("当前经济: -- | 累计经济: --", snapshot.EnemyTeam.EconomyDisplayText);
+        Assert.Equal(300, snapshot.AllyRobots[0].MaxHealthValue);
+        Assert.Equal(100d / 300d, snapshot.AllyRobots[0].HealthPercent, 5);
         Assert.Equal("Base 1300", snapshot.EnemyTeam.BaseHealthText);
         Assert.Equal("1300（0）", snapshot.EnemyTeam.BaseHealthDisplay);
         Assert.False(snapshot.AllyTeam.IsBlue);
