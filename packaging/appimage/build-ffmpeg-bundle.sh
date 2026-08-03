@@ -15,7 +15,8 @@ write_output_readme() {
   cat > "$OUTPUT_DIR/README.md" <<EOF
 # Ubuntu 22.04 FFmpeg Bundle
 
-This directory is the formal release-time FFmpeg runtime bundle for Alliance.VideoWorker.
+This directory is the release-time FFmpeg runtime bundle for Alliance.VideoWorker
+and Alliance.Client screen recording.
 
 Build baseline:
 
@@ -23,17 +24,16 @@ Build baseline:
 - glibc $GLIBC_FLOOR
 - FFmpeg $FFMPEG_VERSION
 
-This bundle replaces the older Arch Linux based linux-x64 bundle for official AppImage builds.
-
 Regenerate it with:
 
 \`bash packaging/appimage/build-ffmpeg-bundle.sh\`
 
-The resulting libraries are validated to ensure:
+The resulting bundle is validated to ensure:
 
+- \`ffmpeg\` exists and is a valid ELF executable
 - \`libavcodec.so.62\`, \`libavutil.so.60\`, and \`libswscale.so.9\` exist
+- \`libx264.so\` is present
 - the highest required \`GLIBC_*\` version does not exceed \`GLIBC_$GLIBC_FLOOR\`
-- heavyweight dependencies such as \`libva\`, \`libvpl\`, \`glib\`, \`cairo\`, \`rsvg\`, \`x264\`, \`x265\`, and \`jxl\` are not pulled into the main decode path
 EOF
 }
 
@@ -88,26 +88,10 @@ assert_glibc_floor() {
   fi
 }
 
-assert_dependency_absent() {
-  local lib_path="$1"
-  local bad_name="$2"
-
-  if LD_LIBRARY_PATH="$OUTPUT_DIR" ldd "$lib_path" | grep -q "$bad_name"; then
-    echo "Unexpected dependency $bad_name found in $(basename "$lib_path")" >&2
-    exit 1
-  fi
-}
-
-assert_library_absent() {
-  local pattern="$1"
-  if compgen -G "$OUTPUT_DIR/$pattern" >/dev/null; then
-    echo "Unexpected library matched in output bundle: $pattern" >&2
-    exit 1
-  fi
-}
-
 require_command readelf
 require_command ldd
+require_command file
+require_command patchelf
 DOCKER_BIN="$(resolve_executable "$DOCKER")"
 
 mkdir -p "$OUTPUT_DIR"
@@ -119,6 +103,7 @@ mkdir -p "$OUTPUT_DIR"
   "$SCRIPT_DIR/docker"
 
 "$DOCKER_BIN" run --rm \
+  -u "$(id -u):$(id -g)" \
   -v "$OUTPUT_DIR:/out" \
   "$IMAGE_TAG" \
   bash -lc 'find /out -mindepth 1 -delete'
@@ -127,7 +112,29 @@ mkdir -p "$OUTPUT_DIR"
   -u "$(id -u):$(id -g)" \
   -v "$OUTPUT_DIR:/out" \
   "$IMAGE_TAG" \
-  bash -lc 'cp -a /opt/ffmpeg-bundle/lib/libavcodec.so* /out/ && cp -a /opt/ffmpeg-bundle/lib/libavutil.so* /out/ && cp -a /opt/ffmpeg-bundle/lib/libswscale.so* /out/'
+  bash -lc 'cp -a /opt/ffmpeg-bundle/lib/*.so* /out/ && cp -a /opt/ffmpeg-bundle/bin/ffmpeg /out/'
+
+"$DOCKER_BIN" run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$OUTPUT_DIR:/out" \
+  "$IMAGE_TAG" \
+  bash -lc '
+    for dir in /usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64; do
+      if compgen -G "$dir/libx264.so*" >/dev/null 2>&1; then
+        cp -a "$dir"/libx264.so* /out/
+        exit 0
+      fi
+    done
+    echo "ERROR: could not locate libx264 in the container" >&2
+    exit 1
+  '
+
+patchelf --set-rpath '$ORIGIN' "$OUTPUT_DIR/ffmpeg"
+for lib_path in "$OUTPUT_DIR"/libav*.so* "$OUTPUT_DIR"/libsw*.so* "$OUTPUT_DIR"/libx264*.so*; do
+  if [[ -f "$lib_path" ]] && file -b "$lib_path" | grep -q ELF; then
+    patchelf --set-rpath '$ORIGIN' "$lib_path"
+  fi
+done
 
 write_output_readme
 
@@ -138,36 +145,21 @@ for required_lib in libavcodec.so.62 libavutil.so.60 libswscale.so.9; do
   fi
 done
 
+if ! file "$OUTPUT_DIR/ffmpeg" | grep -q ELF; then
+  echo "ffmpeg binary is not a valid ELF executable" >&2
+  exit 1
+fi
+
+if ! compgen -G "$OUTPUT_DIR/libx264.so.[0-9]*" >/dev/null; then
+  echo "libx264.so.<version> not found in output bundle" >&2
+  exit 1
+fi
+
 for lib_path in \
   "$OUTPUT_DIR/libavcodec.so.62" \
   "$OUTPUT_DIR/libavutil.so.60" \
   "$OUTPUT_DIR/libswscale.so.9"; do
   assert_glibc_floor "$lib_path"
-done
-
-for pattern in \
-  'libavdevice.so*' \
-  'libavfilter.so*' \
-  'libavformat.so*' \
-  'libswresample.so*'; do
-  assert_library_absent "$pattern"
-done
-
-for bad_name in \
-  libva.so.2 \
-  libvpl.so.2 \
-  libglib-2.0.so.0 \
-  libcairo.so.2 \
-  librsvg-2.so.2 \
-  libx264.so.165 \
-  libx265.so.216 \
-  libjxl.so.0.11; do
-  for lib_path in \
-    "$OUTPUT_DIR/libavcodec.so.62" \
-    "$OUTPUT_DIR/libavutil.so.60" \
-    "$OUTPUT_DIR/libswscale.so.9"; do
-    assert_dependency_absent "$lib_path" "$bad_name"
-  done
 done
 
 echo "Ubuntu 22.04 FFmpeg bundle created at $OUTPUT_DIR"

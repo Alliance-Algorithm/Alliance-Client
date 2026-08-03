@@ -9,6 +9,10 @@ RUN apt-get update && apt-get install -y \
     curl \
     xz-utils \
     nasm \
+    libx264-dev \
+    libx11-dev \
+    libxext-dev \
+    libxfixes-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
@@ -22,29 +26,12 @@ RUN ./configure \
     --prefix=/opt/ffmpeg-bundle \
     --libdir=/opt/ffmpeg-bundle/lib \
     --shlibdir=/opt/ffmpeg-bundle/lib \
-    --disable-everything \
-    --disable-autodetect \
-    --disable-programs \
+    --enable-libx264 \
+    --enable-gpl \
+    --enable-indev=x11grab \
     --disable-doc \
     --disable-static \
-    --disable-network \
-    --disable-hwaccels \
-    --disable-bsfs \
-    --disable-filters \
-    --disable-muxers \
-    --disable-demuxers \
-    --disable-devices \
-    --disable-avdevice \
-    --disable-avfilter \
-    --disable-avformat \
-    --disable-postproc \
-    --disable-swresample \
     --enable-shared \
-    --enable-decoder=hevc \
-    --enable-parser=hevc \
     && make -j"$(nproc)" \
     && make install \
-    && test ! -e /opt/ffmpeg-bundle/lib/libavdevice.so \
-    && test ! -e /opt/ffmpeg-bundle/lib/libavfilter.so \
-    && test ! -e /opt/ffmpeg-bundle/lib/libavformat.so \
-    && test ! -e /opt/ffmpeg-bundle/lib/libswresample.so
+    && test -x /opt/ffmpeg-bundle/bin/ffmpeg

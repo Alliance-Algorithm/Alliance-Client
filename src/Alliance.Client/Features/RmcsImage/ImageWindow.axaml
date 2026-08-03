@@ -3,6 +3,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:Alliance.Client.Features.RmcsImage"
+        xmlns:ctrl="using:Alliance.Client.Shared.Controls"
         x:Class="Alliance.Client.Features.RmcsImage.ImageWindow"
         x:DataType="vm:ImageWindowViewModel"
         Width="960" Height="640"
@@ -119,8 +120,50 @@
     <!-- Composed image -->
     <Border Grid.Row="2" Background="#0D1117" CornerRadius="6"
             BorderBrush="#2D4657" BorderThickness="1">
-      <Image Source="{Binding ImageStore.ComposedImage}"
-             Stretch="Uniform" />
+      <Grid>
+        <Panel>
+          <Image Source="{Binding ImageStore.ComposedImage}"
+                 Stretch="Uniform" />
+          <ctrl:GridOverlay GridDensity="{Binding GridDensity}"
+                            LineOpacity="{Binding LineOpacity}"
+                            ImageAspectRatio="{Binding ImageAspectRatio}" />
+        </Panel>
+
+        <!-- Grid controls -->
+        <Border VerticalAlignment="Bottom" HorizontalAlignment="Right"
+                Margin="8" Padding="10,6" CornerRadius="6"
+                Background="#0D1117D0"
+                BorderBrush="#2D4657" BorderThickness="1">
+          <StackPanel Spacing="6" Width="200">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+              <TextBlock Text="网格" VerticalAlignment="Center"
+                         Foreground="{DynamicResource MutedTextBrush}"
+                         FontSize="11" />
+              <Slider Grid.Column="1" Minimum="0" Maximum="20"
+                      Value="{Binding GridDensity}"
+                      VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2" Text="{Binding GridDensity}"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource AccentBrush}"
+                         FontSize="11" FontWeight="SemiBold"
+                         Width="22" TextAlignment="Right" />
+            </Grid>
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+              <TextBlock Text="透明度" VerticalAlignment="Center"
+                         Foreground="{DynamicResource MutedTextBrush}"
+                         FontSize="11" />
+              <Slider Grid.Column="1" Minimum="0" Maximum="1"
+                      Value="{Binding LineOpacity}"
+                      VerticalAlignment="Center" />
+              <TextBlock Grid.Column="2" Text="{Binding LineOpacity, StringFormat='{}{0:P0}'}"
+                         VerticalAlignment="Center"
+                         Foreground="{DynamicResource AccentBrush}"
+                         FontSize="11" FontWeight="SemiBold"
+                         Width="36" TextAlignment="Right" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
     </Border>
   </Grid>
 </Window>

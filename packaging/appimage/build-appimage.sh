@@ -61,8 +61,8 @@ if [[ -n "$APPIMAGE_RUNTIME_FILE" ]]; then
   APPIMAGETOOL_RUNTIME_ARGS=(--runtime-file "$APPIMAGE_RUNTIME_FILE")
 fi
 
-for required_lib in libavcodec.so.62 libavutil.so.60 libswscale.so.9; do
-  require_file "$FFMPEG_BUNDLE_DIR/$required_lib"
+for required in libavcodec.so.62 libavutil.so.60 libswscale.so.9 ffmpeg; do
+  require_file "$FFMPEG_BUNDLE_DIR/$required"
 done
 
 BUILD_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/alliance-appimage.XXXXXX")"
@@ -95,19 +95,25 @@ is_system_dependency() {
     linux-vdso.so.1|ld-linux*.so*|libc.so.*|libm.so.*|libpthread.so.*|librt.so.*|libdl.so.*|libresolv.so.*|libutil.so.*|libnsl.so.*|libcrypt.so.*)
       return 0
       ;;
+    libX11.so.*|libXext.so.*|libXfixes.so.*|libxcb.so.*|libXau.so.*|libXdmcp.so.*|libbsd.so.*)
+      return 0
+      ;;
     *)
       return 1
       ;;
   esac
 }
 
-collect_ffmpeg_dependency_closure() {
+collect_elf_dependency_closure() {
+  local target_dir="$1"
+  local scan_pattern="${2:-*.so*}"
+
   local -a queue=()
   local -A seen=()
 
   while IFS= read -r -d '' file; do
     queue+=("$file")
-  done < <(find "$APPDIR_WORKER_FFMPEG" -maxdepth 1 -type f -name '*.so*' -print0 | sort -z)
+  done < <(find "$target_dir" -maxdepth 1 -type f \( -name "$scan_pattern" \) -print0 | sort -z)
 
   local index=0
   while (( index < ${#queue[@]} )); do
@@ -116,14 +122,24 @@ collect_ffmpeg_dependency_closure() {
 
     while IFS= read -r line; do
       if [[ "$line" == *"=> not found"* ]]; then
-        echo "Unresolved dependency while scanning $current: $line" >&2
-        exit 1
+        local soname="${line%%=> not found*}"
+        soname="${soname##* }"
+        if ! is_system_dependency "$soname"; then
+          echo "Unresolved dependency while scanning $current: $line" >&2
+          exit 1
+        fi
+        continue
       fi
 
       if [[ "$line" =~ '=> '[[:space:]]*(/[^[:space:]]+) ]]; then
         local source_path="${BASH_REMATCH[1]}"
         local base_name
         base_name="$(basename "$source_path")"
+
+        if [[ "$source_path" == "$target_dir"/* ]]; then
+          seen[$base_name]=1
+          continue
+        fi
 
         if is_system_dependency "$base_name"; then
           continue
@@ -133,25 +149,29 @@ collect_ffmpeg_dependency_closure() {
           continue
         fi
 
-        local destination_path="$APPDIR_WORKER_FFMPEG/$base_name"
+        local destination_path="$target_dir/$base_name"
         if [[ ! -e "$destination_path" ]]; then
-          echo "Bundling FFmpeg dependency: $base_name" >&2
+          echo "Bundling dependency: $base_name" >&2
           cp -aL "$source_path" "$destination_path"
+          chmod a+x "$destination_path"
         fi
 
         seen[$base_name]=1
         queue+=("$destination_path")
       fi
-    done < <(ldd "$current")
+    done < <(LD_LIBRARY_PATH="$target_dir${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" ldd "$current")
   done
 }
 
-verify_ffmpeg_bundle_closure() {
+verify_elf_bundle_closure() {
+  local target_dir="$1"
+  local scan_pattern="${2:-*.so*}"
+
   while IFS= read -r -d '' file; do
     while IFS= read -r line; do
       if [[ "$line" =~ Shared[[:space:]]library:[[:space:]]\[(.+)\] ]]; then
         local needed_name="${BASH_REMATCH[1]}"
-        if [[ -e "$APPDIR_WORKER_FFMPEG/$needed_name" ]]; then
+        if [[ -e "$target_dir/$needed_name" ]]; then
           continue
         fi
 
@@ -159,15 +179,15 @@ verify_ffmpeg_bundle_closure() {
           continue
         fi
 
-        echo "Incomplete FFmpeg bundle: $(basename "$file") requires $needed_name but it was not bundled." >&2
+        echo "Incomplete bundle: $(basename "$file") requires $needed_name but it was not bundled." >&2
         exit 1
       fi
     done < <(readelf -d "$file")
-  done < <(find "$APPDIR_WORKER_FFMPEG" -maxdepth 1 -type f -name '*.so*' -print0 | sort -z)
+  done < <(find "$target_dir" -maxdepth 1 -type f \( -name "$scan_pattern" \) -print0 | sort -z)
 }
 
-collect_ffmpeg_dependency_closure
-verify_ffmpeg_bundle_closure
+collect_elf_dependency_closure "$APPDIR_WORKER_FFMPEG" "*"
+verify_elf_bundle_closure "$APPDIR_WORKER_FFMPEG" "*"
 
 mkdir -p \
   "$APPDIR/usr/share/applications" \
