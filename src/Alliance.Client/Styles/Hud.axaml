@@ -418,6 +418,12 @@
     <Setter Property="Background" Value="#E6B800" />
   </Style>
 
+  <!-- 摩擦轮标记线 -->
+  <Style Selector="Border.hud-friction-marker">
+    <Setter Property="Background" Value="#E6B800" />
+    <Setter Property="IsHitTestVisible" Value="False" />
+  </Style>
+
   <!-- 侧边 alert 面板 -->
   <Style Selector="Border.hud-side-alert">
     <Setter Property="Background" Value="#1A0F00EE" />

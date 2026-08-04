@@ -1,0 +1,201 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:heroTelemetry="using:Alliance.Client.Features.HeroTelemetry"
+             xmlns:local="using:Alliance.Client.Shared.Utils"
+             x:Class="Alliance.Client.Features.Hud.FrictionPanel"
+             x:DataType="heroTelemetry:HeroRobotStatus"
+             mc:Ignorable="d">
+  <Border Classes="hud-panel" VerticalAlignment="Stretch">
+    <StackPanel Spacing="6" VerticalAlignment="Center">
+      <TextBlock Classes="hud-caption" Text="摩擦轮" HorizontalAlignment="Center" />
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+
+        <StackPanel Grid.Column="0" Spacing="4">
+          <TextBlock Classes="hud-detail" Text="前级" />
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="0" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar0Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#57D7C7" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity0Percent" />
+                      <Binding Path="#Bar0Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="FrontMarkerPercent" />
+                    <Binding Path="#Bar0Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity0Text}" />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="1" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar1Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#57D7C7" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity1Percent" />
+                      <Binding Path="#Bar1Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="FrontMarkerPercent" />
+                    <Binding Path="#Bar1Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity1Text}" />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="2" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar2Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#57D7C7" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity2Percent" />
+                      <Binding Path="#Bar2Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="FrontMarkerPercent" />
+                    <Binding Path="#Bar2Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity2Text}" />
+          </Grid>
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Spacing="4">
+          <TextBlock Classes="hud-detail" Text="后级" />
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="3" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar3Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#F1BF5B" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity3Percent" />
+                      <Binding Path="#Bar3Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="RearMarkerPercent" />
+                    <Binding Path="#Bar3Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity3Text}" />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="4" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar4Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#F1BF5B" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity4Percent" />
+                      <Binding Path="#Bar4Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="RearMarkerPercent" />
+                    <Binding Path="#Bar4Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity4Text}" />
+          </Grid>
+
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="4">
+            <TextBlock Classes="hud-detail" Text="5" VerticalAlignment="Center"
+                       Width="14" HorizontalAlignment="Right" />
+            <Grid Grid.Column="1">
+              <Border x:Name="Bar5Bg" Classes="hud-bar-bg" Height="8" VerticalAlignment="Center">
+                <Border Classes="hud-bar-fill" Background="#F1BF5B" HorizontalAlignment="Left">
+                  <Border.Width>
+                    <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                      <Binding Path="Velocity5Percent" />
+                      <Binding Path="#Bar5Bg.Bounds.Width" />
+                    </MultiBinding>
+                  </Border.Width>
+                </Border>
+              </Border>
+              <Border Classes="hud-friction-marker" HorizontalAlignment="Left"
+                      VerticalAlignment="Stretch" Width="2">
+                <Border.Margin>
+                  <MultiBinding Converter="{x:Static local:LeftMarginConverter.Instance}">
+                    <Binding Path="RearMarkerPercent" />
+                    <Binding Path="#Bar5Bg.Bounds.Width" />
+                  </MultiBinding>
+                </Border.Margin>
+              </Border>
+            </Grid>
+            <TextBlock Grid.Column="2" Classes="hud-value" FontSize="12"
+                       VerticalAlignment="Center" Width="36"
+                       Text="{Binding Velocity5Text}" />
+          </Grid>
+        </StackPanel>
+
+      </Grid>
+    </StackPanel>
+  </Border>
+</UserControl>

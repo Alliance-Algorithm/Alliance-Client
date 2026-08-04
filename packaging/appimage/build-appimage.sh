@@ -98,6 +98,9 @@ is_system_dependency() {
     libX11.so.*|libXext.so.*|libXfixes.so.*|libxcb.so.*|libXau.so.*|libXdmcp.so.*|libbsd.so.*)
       return 0
       ;;
+    libdrm.so.*|libva.so.*|libva-drm.so.*)
+      return 0
+      ;;
     *)
       return 1
       ;;

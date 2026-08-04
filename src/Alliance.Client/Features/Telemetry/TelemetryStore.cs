@@ -1,4 +1,5 @@
 using System.Globalization;
+using Alliance.Client.Features.HeroTelemetry;
 using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.Settings;
@@ -34,6 +35,7 @@ public sealed class TelemetryStore : ObservableObject
     private Dictionary<BuffKey, BuffState> _activeBuffs = [];
     private List<RadarSlotState> _radarSlots = [];
     private EnemyRadarData? _enemyRadarData;
+    private HeroRobotStatus? _heroStatus;
     private byte[]? _customByteBlockData;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
@@ -286,6 +288,21 @@ public sealed class TelemetryStore : ObservableObject
                 lock (_gate)
                 {
                     _enemyRadarData = result;
+                    _lastTelemetryAt = DateTimeOffset.UtcNow;
+                    PublishSnapshotLocked();
+                }
+            }
+            return;
+        }
+
+        if (data.Length > 0 && data[0] == 0x05)
+        {
+            var result = HeroMsgParser.Parse(data.AsSpan(1));
+            if (result is not null)
+            {
+                lock (_gate)
+                {
+                    _heroStatus = result;
                     _lastTelemetryAt = DateTimeOffset.UtcNow;
                     PublishSnapshotLocked();
                 }
@@ -550,6 +567,7 @@ public sealed class TelemetryStore : ObservableObject
             EnemySideAlerts = BuildSideAlerts(isEnemy: true, now, activeMechanisms),
             ShowBaseAttackToast = IsBaseAttackToastVisible(now),
             EnemyRadarData = _enemyRadarData,
+            HeroRobotStatus = _heroStatus,
             LatestEvent = _latestEvent is null
                 ? null
                 : new EventTelemetrySnapshot(_latestEvent.EventId, _latestEvent.RawParam, _latestEvent.SummaryText),

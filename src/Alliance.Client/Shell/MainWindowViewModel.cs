@@ -26,6 +26,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly HudLayoutSettings _hudLayoutSettings;
     private string _currentRobotLabel;
+    private uint _previousStage;
     private Window? _settingsDialog;
     private Window? _imageWindow;
 
@@ -80,6 +81,19 @@ public sealed class MainWindowViewModel : ObservableObject
 
         var snapshot = _telemetryStore.CurrentSnapshot;
         CurrentRobotLabel = snapshot.CurrentRobot.RobotLabel;
+
+        var gs = _telemetryStore.GameStatus;
+        if (gs is null) return;
+
+        var stage = gs.CurrentStage;
+
+        if (stage == 3 && _previousStage != 3 && !_screenRecorder.IsRecording)
+            ToggleRecording();
+
+        if (stage == 5 && _previousStage != 5 && _screenRecorder.IsRecording)
+            ToggleRecording();
+
+        _previousStage = stage;
     }
 
     public void OpenSettings(Window owner)

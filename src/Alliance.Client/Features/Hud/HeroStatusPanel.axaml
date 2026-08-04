@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:heroTelemetry="using:Alliance.Client.Features.HeroTelemetry"
+             x:Class="Alliance.Client.Features.Hud.HeroStatusPanel"
+             x:DataType="heroTelemetry:HeroRobotStatus"
+             mc:Ignorable="d">
+  <Border Classes="hud-panel" VerticalAlignment="Stretch">
+    <Grid ColumnDefinitions="*,*,*" VerticalAlignment="Center">
+      <StackPanel Grid.Column="0" Spacing="2"
+                   HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Classes="hud-caption" Text="弹速"
+                   HorizontalAlignment="Center" />
+        <TextBlock Classes="hud-value" FontSize="20"
+                   Text="{Binding BulletSpeedText}"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="1" Spacing="2"
+                   HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Classes="hud-caption" Text="pitch"
+                   HorizontalAlignment="Center" />
+        <TextBlock Classes="hud-value" FontSize="18"
+                   Text="{Binding PitchText}"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+
+      <StackPanel Grid.Column="2" Spacing="2"
+                   HorizontalAlignment="Center" VerticalAlignment="Center">
+        <TextBlock Classes="hud-caption" Text="top yaw"
+                   HorizontalAlignment="Center" />
+        <TextBlock Classes="hud-value" FontSize="18"
+                   Text="{Binding YawText}"
+                   HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+  </Border>
+</UserControl>

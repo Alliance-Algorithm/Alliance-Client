@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     libx11-dev \
     libxext-dev \
     libxfixes-dev \
+    libdrm-dev \
+    libva-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
@@ -29,6 +31,8 @@ RUN ./configure \
     --enable-libx264 \
     --enable-gpl \
     --enable-indev=x11grab \
+    --enable-indev=kmsgrab \
+    --enable-vaapi \
     --disable-doc \
     --disable-static \
     --enable-shared \

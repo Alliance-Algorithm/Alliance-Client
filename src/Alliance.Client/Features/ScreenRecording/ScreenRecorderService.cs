@@ -21,6 +21,10 @@ public sealed class ScreenRecorderService
     [DllImport(LibX11)]
     private static extern int XCloseDisplay(IntPtr display);
 
+    private static bool IsWayland =>
+        Environment.GetEnvironmentVariable("XDG_SESSION_TYPE") == "wayland"
+        || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WAYLAND_DISPLAY"));
+
     private readonly RecordingSettings _settings;
     private readonly ILogger<ScreenRecorderService> _logger;
     private Process? _process;
@@ -65,8 +69,10 @@ public sealed class ScreenRecorderService
         var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         _outputPath = Path.Combine(outputDir, $"Alliance_Client_{timestamp}.mp4");
 
-        var screen = GetScreenBounds();
-        var args = BuildFfmpegArgs(screen.Width, screen.Height, _outputPath);
+        var isWayland = IsWayland;
+        var screen = isWayland ? GetDrmScreenBounds() : GetScreenBounds();
+        var backend = isWayland ? "kmsgrab" : "x11grab";
+        var args = BuildFfmpegArgs(screen.Width, screen.Height, _outputPath, backend);
 
         var ffmpegPath = ResolveFfmpegPath();
         var startInfo = new ProcessStartInfo
@@ -82,6 +88,11 @@ public sealed class ScreenRecorderService
 
         _process = Process.Start(startInfo)
                    ?? throw new InvalidOperationException("Failed to start ffmpeg process.");
+
+        _process.OutputDataReceived += (_, _) => { };
+        _process.ErrorDataReceived += (_, _) => { };
+        _process.BeginOutputReadLine();
+        _process.BeginErrorReadLine();
 
         _startedAt = DateTimeOffset.UtcNow;
         _isRecording = true;
@@ -104,12 +115,20 @@ public sealed class ScreenRecorderService
 
         try
         {
-            await _process.StandardInput.WriteLineAsync("q");
-            _logger.LogInformation("[recording] Sent quit signal to ffmpeg.");
+            if (_process.HasExited)
+            {
+                _logger.LogWarning("[recording] ffmpeg already exited (code={ExitCode}), skipping quit signal.",
+                    _process.ExitCode);
+            }
+            else
+            {
+                await _process.StandardInput.WriteLineAsync("q");
+                _logger.LogInformation("[recording] Sent quit signal to ffmpeg.");
 
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
-            await _process.WaitForExitAsync(linkedCts.Token);
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+                await _process.WaitForExitAsync(linkedCts.Token);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -136,10 +155,18 @@ public sealed class ScreenRecorderService
             if (_process is null || _process.HasExited)
             {
                 var exitCode = _process?.ExitCode;
-                if (_isRecording && exitCode != 0)
+                if (_isRecording)
                 {
-                    _lastError = $"ffmpeg exited unexpectedly with code {exitCode}.";
-                    _logger.LogError("[recording] {Error}", _lastError);
+                    if (exitCode != 0)
+                    {
+                        _lastError = $"ffmpeg exited unexpectedly with code {exitCode}.";
+                        _logger.LogError("[recording] {Error}", _lastError);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[recording] ffmpeg exited unexpectedly with code 0.");
+                    }
+
                     await CleanupAsync();
                     _isRecording = false;
                     StatusChanged?.Invoke();
@@ -188,15 +215,35 @@ public sealed class ScreenRecorderService
             _monitorTask = null;
         }
 
-        _process?.Dispose();
-        _process = null;
+        if (_process is not null)
+        {
+            try { _process.CancelOutputRead(); } catch { }
+            try { _process.CancelErrorRead(); } catch { }
+            _process.Dispose();
+            _process = null;
+        }
     }
 
-    private string BuildFfmpegArgs(int width, int height, string outputPath)
+    private string BuildFfmpegArgs(int width, int height, string outputPath, string backend)
     {
+        var fragFlags = "+frag_keyframe+empty_moov+faststart";
+
+        if (backend == "kmsgrab")
+        {
+            var vaapiDevice = File.Exists("/dev/dri/renderD128")
+                ? "/dev/dri/renderD128"
+                : "/dev/dri/renderD129";
+
+            return $"-vaapi_device {vaapiDevice} "
+                   + $"-f kmsgrab -framerate {_settings.FrameRate} -i - "
+                   + $"-vf 'hwmap=derive_device=vaapi,scale_vaapi=format=nv12' "
+                   + $"-c:v h264_vaapi -qp {_settings.Crf} "
+                   + $"-movflags {fragFlags} -y \"{outputPath}\"";
+        }
+
         return $"-f x11grab -video_size {width}x{height} -framerate {_settings.FrameRate} -i :0.0 "
                + $"-c:v libx264 -preset ultrafast -crf {_settings.Crf} -pix_fmt yuv420p "
-               + $"-movflags +faststart -y \"{outputPath}\"";
+               + $"-movflags {fragFlags} -y \"{outputPath}\"";
     }
 
     private static string ResolveOutputDirectory(string path)
@@ -228,6 +275,48 @@ public sealed class ScreenRecorderService
         }
     }
 
+    private static (int Width, int Height) GetDrmScreenBounds()
+    {
+        try
+        {
+            var drmDir = "/sys/class/drm";
+            if (!Directory.Exists(drmDir))
+                return (1920, 1080);
+
+            foreach (var connector in Directory.EnumerateDirectories(drmDir, "card*-*"))
+            {
+                var statusPath = Path.Combine(connector, "status");
+                if (!File.Exists(statusPath))
+                    continue;
+
+                var status = File.ReadAllText(statusPath).Trim();
+                if (status != "connected")
+                    continue;
+
+                var modesPath = Path.Combine(connector, "modes");
+                if (!File.Exists(modesPath))
+                    continue;
+
+                var firstLine = File.ReadLines(modesPath).FirstOrDefault()?.Trim();
+                if (string.IsNullOrEmpty(firstLine))
+                    continue;
+
+                var parts = firstLine.Split('x');
+                if (parts.Length == 2
+                    && int.TryParse(parts[0], out var w)
+                    && int.TryParse(parts[1], out var h))
+                {
+                    return (w, h);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return (1920, 1080);
+    }
+
     private static string ResolveFfmpegPath()
     {
         var envPath = Environment.GetEnvironmentVariable("ALLIANCE_FFMPEG_ROOT");
@@ -247,10 +336,20 @@ public sealed class ScreenRecorderService
     {
         try
         {
-            if (process is not null && !process.HasExited)
+            if (process is null || process.HasExited)
+                return;
+
+            try
             {
-                process.Kill(entireProcessTree: true);
+                using var sigint = Process.Start("kill", $"-2 {process.Id}");
+                sigint?.WaitForExit(3000);
             }
+            catch { }
+
+            if (process.HasExited)
+                return;
+
+            process.Kill(entireProcessTree: true);
         }
         catch
         {
