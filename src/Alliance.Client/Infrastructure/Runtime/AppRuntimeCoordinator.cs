@@ -1,5 +1,6 @@
 using Alliance.Client.Features.Video;
 using Alliance.Client.Features.Telemetry;
+using Alliance.Client.Infrastructure.Power;
 using Microsoft.Extensions.Logging;
 
 namespace Alliance.Client.Infrastructure.Runtime;
@@ -8,20 +9,24 @@ public sealed class AppRuntimeCoordinator
 {
     private readonly ITelemetryService _telemetryService;
     private readonly IVideoSupervisorService _videoSupervisorService;
+    private readonly ScreenWakeLockService _screenWakeLock;
     private readonly ILogger<AppRuntimeCoordinator> _logger;
 
     public AppRuntimeCoordinator(
         ITelemetryService telemetryService,
         IVideoSupervisorService videoSupervisorService,
+        ScreenWakeLockService screenWakeLock,
         ILogger<AppRuntimeCoordinator> logger)
     {
         _telemetryService = telemetryService;
         _videoSupervisorService = videoSupervisorService;
+        _screenWakeLock = screenWakeLock;
         _logger = logger;
     }
 
     public void Start()
     {
+        _screenWakeLock.Start();
         _ = StartInternalAsync();
     }
 
@@ -29,6 +34,7 @@ public sealed class AppRuntimeCoordinator
     {
         await _videoSupervisorService.StopAsync(cancellationToken);
         await _telemetryService.StopAsync(cancellationToken);
+        _screenWakeLock.Stop();
     }
 
     public async Task RestartTelemetryAsync(CancellationToken cancellationToken = default)

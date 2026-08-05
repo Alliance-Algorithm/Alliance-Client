@@ -6,6 +6,7 @@ using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
 using Alliance.Client.Infrastructure.Logging;
+using Alliance.Client.Infrastructure.Power;
 using Alliance.Client.Infrastructure.Runtime;
 using Alliance.Client.Shell;
 using Microsoft.Extensions.Configuration;
@@ -47,6 +48,7 @@ public static class AppBootstrapper
         services.AddSingleton<ScreenRecorderService>();
         services.AddSingleton<ScreenRecorderViewModel>();
 
+        services.AddSingleton<ScreenWakeLockService>();
         services.AddSingleton<StartupLogger>();
         services.AddSingleton<AppRuntimeCoordinator>();
 
