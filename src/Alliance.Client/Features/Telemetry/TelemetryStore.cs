@@ -37,11 +37,13 @@ public sealed class TelemetryStore : ObservableObject
     private EnemyRadarData? _enemyRadarData;
     private HeroRobotStatus? _heroStatus;
     private byte[]? _customByteBlockData;
+    private uint _dartGateStatus;
     private ConnectionState _mqttState = ConnectionState.NotConnected;
     private DateTimeOffset? _lastTelemetryAt;
     private string? _startupWarning;
     private string? _mqttNote;
     private bool _enemyAirSupportCountered;
+    private DateTimeOffset? _enemyAirSupportCounteredAt;
     private DateTimeOffset? _baseAttackToastUntil;
     private readonly OutpostRebuildTracker _allyOutpostRebuild = new();
     private readonly OutpostRebuildTracker _enemyOutpostRebuild = new();
@@ -385,6 +387,11 @@ public sealed class TelemetryStore : ObservableObject
                 ApplyRadarInfoToClientLocked(batch.RadarInfoToClient, batch.ReceivedAt);
             }
 
+            if (batch.DartSelectTargetStatusSync is not null)
+            {
+                _dartGateStatus = batch.DartSelectTargetStatusSync.Open;
+            }
+
             MarkTelemetryReceivedLocked(batch.ReceivedAt);
         }
     }
@@ -400,9 +407,11 @@ public sealed class TelemetryStore : ObservableObject
         {
             case 7:
                 _enemyAirSupportCountered = false;
+                _enemyAirSupportCounteredAt = null;
                 break;
             case 8:
                 _enemyAirSupportCountered = true;
+                _enemyAirSupportCounteredAt = receivedAt;
                 break;
             case 11:
                 _baseAttackToastUntil = receivedAt.AddSeconds(5);
@@ -479,7 +488,8 @@ public sealed class TelemetryStore : ObservableObject
                                 !CurrentSnapshot.ActiveBuffs.SequenceEqual(nextBuffs) ||
                                 !CurrentSnapshot.ActiveMechanisms.SequenceEqual(nextMechanisms) ||
                                 _allyOutpostRebuild.IsDirty ||
-                                _enemyOutpostRebuild.IsDirty;
+                                _enemyOutpostRebuild.IsDirty ||
+                                _enemyAirSupportCountered;
 
             if (shouldPublish)
             {
@@ -559,8 +569,8 @@ public sealed class TelemetryStore : ObservableObject
                 _globalUnitStatus is null ? null : (int)_globalUnitStatus.TotalDamageEnemy,
                 isEnemy: true,
                 isBlue: !_isOwnTeamBlue),
-            AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs, radarRobots),
-            EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs, radarRobots),
+            AllyRobots = BuildRobotBars(isAllyTeam: true, activeBuffs, radarRobots, now),
+            EnemyRobots = BuildRobotBars(isAllyTeam: false, activeBuffs, radarRobots, now),
             CurrentRobot = BuildCurrentRobotPanel(activeBuffs),
             ReversePanel = BuildReversePanel(now, activeBuffs),
             AllySideAlerts = BuildSideAlerts(isEnemy: false, now, activeMechanisms),
@@ -568,6 +578,7 @@ public sealed class TelemetryStore : ObservableObject
             ShowBaseAttackToast = IsBaseAttackToastVisible(now),
             EnemyRadarData = _enemyRadarData,
             HeroRobotStatus = _heroStatus,
+            DartGateStatus = _dartGateStatus,
             LatestEvent = _latestEvent is null
                 ? null
                 : new EventTelemetrySnapshot(_latestEvent.EventId, _latestEvent.RawParam, _latestEvent.SummaryText),
@@ -645,7 +656,8 @@ public sealed class TelemetryStore : ObservableObject
     private IReadOnlyList<RobotStatusSnapshot> BuildRobotBars(
         bool isAllyTeam,
         IReadOnlyList<RobotBuffTelemetrySnapshot> activeBuffs,
-        IReadOnlyList<RadarRobotTelemetrySnapshot> radarRobots)
+        IReadOnlyList<RadarRobotTelemetrySnapshot> radarRobots,
+        DateTimeOffset now)
     {
         var values = new List<RobotStatusSnapshot>(RobotSlots.Length);
         for (var index = 0; index < RobotSlots.Length; index++)
@@ -662,6 +674,15 @@ public sealed class TelemetryStore : ObservableObject
             var isAlive = isAerial || !health.HasValue || health.Value > 0;
             var buffLabels = BuildRobotBuffLabels(activeBuffs, absoluteRobotId, maxEntries: 2);
             var isRadarLocked = !isAllyTeam && radarRobots.Any(r => r.RobotId == absoluteRobotId && r.IsHighlighted);
+
+            var isAirSupportCountered = !isAllyTeam && isAerial && _enemyAirSupportCountered;
+            var counterProgress = 0d;
+            var counterRemaining = 0d;
+            if (isAirSupportCountered && _enemyAirSupportCounteredAt.HasValue)
+            {
+                counterRemaining = Math.Max(0, 45 - (now - _enemyAirSupportCounteredAt.Value).TotalSeconds);
+                counterProgress = counterRemaining / 45;
+            }
 
             values.Add(new RobotStatusSnapshot(
                 slotLabel,
@@ -682,7 +703,9 @@ public sealed class TelemetryStore : ObservableObject
                 IsAlive: isAlive,
                 IsAerial: isAerial,
                 IsRadarLocked: isRadarLocked,
-                IsAirSupportCountered: !isAllyTeam && isAerial && _enemyAirSupportCountered,
+                IsAirSupportCountered: isAirSupportCountered,
+                AirSupportCounteredProgress: counterProgress,
+                AirSupportCounteredRemainingSeconds: counterRemaining,
                 BuffLabels: buffLabels));
         }
 
@@ -1020,6 +1043,13 @@ public sealed class TelemetryStore : ObservableObject
         if (_baseAttackToastUntil.HasValue && now >= _baseAttackToastUntil.Value)
         {
             _baseAttackToastUntil = null;
+        }
+
+        if (_enemyAirSupportCountered && _enemyAirSupportCounteredAt.HasValue
+            && (now - _enemyAirSupportCounteredAt.Value).TotalSeconds >= 45)
+        {
+            _enemyAirSupportCountered = false;
+            _enemyAirSupportCounteredAt = null;
         }
     }
 

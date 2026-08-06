@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.ScreenRecording;
@@ -25,6 +26,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ScreenRecorderService _screenRecorder;
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly HudLayoutSettings _hudLayoutSettings;
+    private readonly DartAutoService _dartAuto;
     private string _currentRobotLabel;
     private uint _previousStage;
     private Window? _settingsDialog;
@@ -41,7 +43,8 @@ public sealed class MainWindowViewModel : ObservableObject
         ScreenRecorderService screenRecorderService,
         RecordingSettings recordingSettings,
         ILogger<MainWindowViewModel> logger,
-        HudLayoutSettings hudLayoutSettings)
+        HudLayoutSettings hudLayoutSettings,
+        DartAutoService dartAuto)
     {
         Hud = hud;
         _telemetryStore = telemetryStore;
@@ -54,6 +57,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _screenRecorder = screenRecorderService;
         _logger = logger;
         _hudLayoutSettings = hudLayoutSettings;
+        _dartAuto = dartAuto;
 
         WindowTitle = settings.ApplicationName;
 
@@ -74,6 +78,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public HudOverlayViewModel Hud { get; }
 
     public ScreenRecorderViewModel Recorder { get; }
+
+    public DartAutoService Dart => _dartAuto;
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {

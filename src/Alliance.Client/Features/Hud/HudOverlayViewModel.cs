@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Features.Video;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -10,6 +11,7 @@ public sealed class HudOverlayViewModel : ObservableObject
     private readonly TelemetryStore _telemetryStore;
     private readonly VideoStreamStore _videoStreamStore;
     private readonly HudLayoutSettings _layoutSettings;
+    private readonly DartAutoService _dartAuto;
     private TelemetrySnapshot _snapshot;
     private RobotStatusBarViewModel _allyRobotsViewModel;
     private RobotStatusBarViewModel _enemyRobotsViewModel;
@@ -17,11 +19,13 @@ public sealed class HudOverlayViewModel : ObservableObject
     public HudOverlayViewModel(
         TelemetryStore telemetryStore,
         VideoStreamStore videoStreamStore,
-        HudLayoutSettings layoutSettings)
+        HudLayoutSettings layoutSettings,
+        DartAutoService dartAuto)
     {
         _telemetryStore = telemetryStore;
         _videoStreamStore = videoStreamStore;
         _layoutSettings = layoutSettings;
+        _dartAuto = dartAuto;
         _snapshot = telemetryStore.CurrentSnapshot;
         _allyRobotsViewModel = new RobotStatusBarViewModel("ALLY ROBOTS", _snapshot.AllyRobots, isEnemy: false);
         _enemyRobotsViewModel = new RobotStatusBarViewModel("ENEMY ROBOTS", _snapshot.EnemyRobots, isEnemy: true);
@@ -51,6 +55,8 @@ public sealed class HudOverlayViewModel : ObservableObject
     public VideoStreamStore Video => _videoStreamStore;
 
     public HudLayoutSettings LayoutSettings => _layoutSettings;
+
+    public DartAutoService DartAuto => _dartAuto;
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)
     {

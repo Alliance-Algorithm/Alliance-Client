@@ -188,6 +188,27 @@
     <Setter Property="Height" Value="9" />
   </Style>
 
+  <Style Selector="Border.hud-robot-counter-bg">
+    <Setter Property="Background" Value="#1A2016" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="9" />
+    <Setter Property="ClipToBounds" Value="True" />
+  </Style>
+
+  <Style Selector="Border.hud-robot-counter-fill">
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="9" />
+    <Setter Property="Background" Value="#FF9F1A" />
+  </Style>
+
+  <Style Selector="TextBlock.hud-robot-counter-text">
+    <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="#FF9F1A" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
   <Style Selector="TextBlock.hud-robot-meta">
     <Setter Property="FontFamily" Value="{DynamicResource AppMono}" />
     <Setter Property="FontSize" Value="11" />

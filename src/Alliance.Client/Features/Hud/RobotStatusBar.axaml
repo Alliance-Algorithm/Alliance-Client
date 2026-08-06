@@ -83,6 +83,29 @@
                                     </Border>
                                 </Border>
 
+                                <Grid Grid.Row="1"
+                                      IsVisible="{Binding ShowAirSupportCounteredBar}"
+                                      ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                                    <Border x:Name="AirSupportCounteredBarBg"
+                                            Grid.Column="0"
+                                            Classes="hud-robot-counter-bg">
+                                        <Border Classes="hud-robot-counter-fill"
+                                                HorizontalAlignment="Left">
+                                            <Border.Width>
+                                                <MultiBinding Converter="{x:Static local:PercentToWidthConverter.Instance}">
+                                                    <Binding Path="AirSupportCounteredProgress" />
+                                                    <Binding Path="#AirSupportCounteredBarBg.Bounds.Width" />
+                                                </MultiBinding>
+                                            </Border.Width>
+                                        </Border>
+                                    </Border>
+                                    <TextBlock Grid.Column="1"
+                                               Classes="hud-robot-counter-text"
+                                               Text="{Binding AirSupportCounteredTimeText}"
+                                               VerticalAlignment="Center"
+                                               FontSize="{Binding TextScale, RelativeSource={RelativeSource AncestorType=hud:RobotStatusBar}, Converter={x:Static local:ScaledDoubleConverter.Instance}, ConverterParameter=10}" />
+                                </Grid>
+
                                 <Grid Grid.Row="2" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6"
                                       VerticalAlignment="Bottom">
                                     <TextBlock Grid.Column="0"

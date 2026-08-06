@@ -57,6 +57,15 @@
                      Foreground="{DynamicResource AccentBrush}"
                      VerticalAlignment="Center" />
         </Border>
+
+        <Border Classes="settings-btn"
+                PointerPressed="OnDartPressed">
+          <TextBlock Text="DART"
+                     FontSize="11" FontWeight="SemiBold"
+                     FontFamily="{DynamicResource AppMono}"
+                     Foreground="{DynamicResource AccentBrush}"
+                     VerticalAlignment="Center" />
+        </Border>
       </StackPanel>
     </Grid>
   </Grid>

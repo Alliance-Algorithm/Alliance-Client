@@ -197,11 +197,33 @@ public sealed class TelemetryMappingTests
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyEvent(new Event { EventId = 8, Param = "1" });
-        Assert.Equal("【被反制】", store.CurrentSnapshot.EnemyRobots[5].StateText);
+        var enemyDrone = store.CurrentSnapshot.EnemyRobots[5];
+        Assert.Equal("【被反制】", enemyDrone.StateText);
         Assert.Equal("空中单位", store.CurrentSnapshot.AllyRobots[5].StateText);
+        Assert.True(enemyDrone.ShowAirSupportCounteredBar);
+        Assert.True(enemyDrone.AirSupportCounteredProgress > 0);
+        Assert.True(enemyDrone.AirSupportCounteredRemainingSeconds > 0);
+        Assert.Contains("反制", enemyDrone.AirSupportCounteredTimeText);
 
         store.ApplyEvent(new Event { EventId = 7 });
+        enemyDrone = store.CurrentSnapshot.EnemyRobots[5];
+        Assert.Equal("空中单位", enemyDrone.StateText);
+        Assert.False(enemyDrone.ShowAirSupportCounteredBar);
+        Assert.Equal(0, enemyDrone.AirSupportCounteredProgress);
+    }
+
+    [Fact]
+    public void TelemetryStore_EnemyAirSupport_Countered_Expires_After_45_Seconds()
+    {
+        var store = new TelemetryStore(CreateSettings(), null!);
+        store.SetMqttState(ConnectionState.Ready, "MQTT ready");
+
+        store.ApplyEvent(new Event { EventId = 8, Param = "1" });
+        Assert.True(store.CurrentSnapshot.EnemyRobots[5].ShowAirSupportCounteredBar);
+
+        store.RefreshStaleness(DateTimeOffset.UtcNow.AddSeconds(46));
         Assert.Equal("空中单位", store.CurrentSnapshot.EnemyRobots[5].StateText);
+        Assert.False(store.CurrentSnapshot.EnemyRobots[5].ShowAirSupportCounteredBar);
     }
 
     [Fact]

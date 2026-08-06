@@ -1,4 +1,5 @@
 using Alliance.Client.Features.Control;
+using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.RmcsImage;
 using Alliance.Client.Features.ScreenRecording;
@@ -38,7 +39,10 @@ public static class AppBootstrapper
         });
 
         services.AddSingleton<TelemetryStore>();
-        services.AddSingleton<ITelemetryService, MqttTelemetryService>();
+        services.AddSingleton<MqttTelemetryService>();
+        services.AddSingleton<ITelemetryService>(sp => sp.GetRequiredService<MqttTelemetryService>());
+        services.AddSingleton<IMqttMessagePublisher>(sp => sp.GetRequiredService<MqttTelemetryService>());
+        services.AddSingleton<DartAutoService>();
         services.AddSingleton<VideoStreamStore>();
         services.AddSingleton<HudLayoutSettings>();
         services.AddSingleton<IVideoSupervisorService, VideoSupervisorService>();

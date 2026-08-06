@@ -1,5 +1,6 @@
 using System.Buffers;
 using Avalonia.Threading;
+using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Protocol;
 using Alliance.Client.Shared.Models;
@@ -13,7 +14,7 @@ using MQTTnet.Protocol;
 
 namespace Alliance.Client.Features.Telemetry;
 
-public sealed class MqttTelemetryService : ITelemetryService
+public sealed class MqttTelemetryService : ITelemetryService, IMqttMessagePublisher
 {
     private static readonly TimeSpan TelemetryFlushInterval = TimeSpan.FromMilliseconds(50);
 
@@ -28,7 +29,8 @@ public sealed class MqttTelemetryService : ITelemetryService
         nameof(RobotDynamicStatus),
         nameof(Buff),
         nameof(RadarInfoToClient),
-        nameof(CustomByteBlock)
+        nameof(CustomByteBlock),
+        nameof(DartSelectTargetStatusSync)
     ];
 
     private readonly AppSettings _settings;
@@ -52,6 +54,7 @@ public sealed class MqttTelemetryService : ITelemetryService
     private RobotStaticStatus? _pendingRobotStaticStatus;
     private RobotDynamicStatus? _pendingRobotDynamicStatus;
     private RadarInfoToClient? _pendingRadarInfoToClient;
+    private DartSelectTargetStatusSync? _pendingDartSelectTargetStatusSync;
     private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan InitialRetryDelay = TimeSpan.FromSeconds(2);
 
@@ -112,6 +115,22 @@ public sealed class MqttTelemetryService : ITelemetryService
             _monitorTask = null;
             _batchTask = null;
         }
+    }
+
+    public async Task PublishAsync(string topic, byte[] payload, CancellationToken cancellationToken = default)
+    {
+        if (_client is null || !_client.IsConnected)
+        {
+            return;
+        }
+
+        await _client.PublishAsync(
+            new MqttApplicationMessageBuilder()
+                .WithTopic(topic)
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                .Build(),
+            cancellationToken);
     }
 
     private async Task RunAsync(CancellationToken cancellationToken)
@@ -401,6 +420,9 @@ public sealed class MqttTelemetryService : ITelemetryService
                     return RunOnUiThreadAsync(() =>
                         _telemetryStore.ApplyCustomByteBlockData(data));
                 }
+                case nameof(DartSelectTargetStatusSync):
+                    EnqueueDartSelectTargetStatusSync(DartSelectTargetStatusSync.Parser.ParseFrom(payload));
+                    return Task.CompletedTask;
                 default:
                     _logger.LogWarning(
                         "Ignoring unsupported MQTT topic '{Topic}' resolved as '{ResolvedTopic}'",
@@ -505,6 +527,15 @@ public sealed class MqttTelemetryService : ITelemetryService
         }
     }
 
+    private void EnqueueDartSelectTargetStatusSync(DartSelectTargetStatusSync status)
+    {
+        lock (_batchGate)
+        {
+            _pendingDartSelectTargetStatusSync = status;
+            _pendingReceivedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
     private TelemetryUpdateBatch TakePendingTelemetryBatch()
     {
         lock (_batchGate)
@@ -519,6 +550,7 @@ public sealed class MqttTelemetryService : ITelemetryService
                 RobotStaticStatus = _pendingRobotStaticStatus,
                 RobotDynamicStatus = _pendingRobotDynamicStatus,
                 RadarInfoToClient = _pendingRadarInfoToClient,
+                DartSelectTargetStatusSync = _pendingDartSelectTargetStatusSync,
                 Events = _pendingEvents.ToArray(),
                 Buffs = _pendingBuffs.ToArray()
             };
@@ -531,6 +563,7 @@ public sealed class MqttTelemetryService : ITelemetryService
             _pendingRobotStaticStatus = null;
             _pendingRobotDynamicStatus = null;
             _pendingRadarInfoToClient = null;
+            _pendingDartSelectTargetStatusSync = null;
             _pendingEvents.Clear();
             _pendingBuffs.Clear();
 

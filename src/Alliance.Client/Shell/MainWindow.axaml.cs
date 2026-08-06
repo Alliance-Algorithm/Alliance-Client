@@ -52,6 +52,15 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnDartPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.Dart.IsEnabled = !vm.Dart.IsEnabled;
+            e.Handled = true;
+        }
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (DataContext is MainWindowViewModel vm)

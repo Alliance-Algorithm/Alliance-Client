@@ -126,8 +126,8 @@ IsHitTestVisible="False": 不拦截鼠标事件，允许穿透到视频层与主
       <vm:ReversePanel Grid.Column="1"
                        DataContext="{Binding Snapshot.ReversePanel}" />
 
-      <vm:HeroStatusPanel Grid.Column="2"
-                           DataContext="{Binding Snapshot.HeroRobotStatus}" />
+      <vm:DartControlPanel Grid.Column="2"
+                            DataContext="{Binding DartAuto}" />
 
       <vm:FrictionPanel Grid.Column="3"
                         DataContext="{Binding Snapshot.HeroRobotStatus}" />

@@ -105,3 +105,14 @@ message RadarInfoToClient {
 message CustomByteBlock {
   bytes data = 1;
 }
+
+message DartSelectTargetStatusSync {
+  uint32 target_id = 1;
+  uint32 open = 2;
+}
+
+message DartCommand {
+  uint32 target_id = 1;
+  bool open = 2;
+  bool launch_confirm = 3;
+}

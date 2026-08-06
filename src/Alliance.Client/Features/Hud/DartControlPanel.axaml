@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:dart="using:Alliance.Client.Features.Dart"
+             x:Class="Alliance.Client.Features.Hud.DartControlPanel"
+             x:DataType="dart:DartAutoService"
+             IsHitTestVisible="True"
+             Background="Transparent"
+             mc:Ignorable="d">
+  <Border Classes="hud-panel" VerticalAlignment="Stretch">
+    <StackPanel Spacing="4" VerticalAlignment="Center" HorizontalAlignment="Center">
+      <TextBlock Classes="hud-caption" Text="飞镖控制" HorizontalAlignment="Center" />
+
+      <Border x:Name="ToggleTrack"
+              Width="44" Height="24" CornerRadius="12"
+              Background="#3A505B">
+        <Border x:Name="ToggleKnob"
+                Width="18" Height="18" CornerRadius="9"
+                Background="#EDF4F6"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Center"
+                Margin="3,0,0,0" />
+      </Border>
+
+      <TextBlock HorizontalAlignment="Center" FontSize="10"
+                 Foreground="{DynamicResource MutedTextBrush}"
+                 Text="自动发射飞镖" />
+    </StackPanel>
+  </Border>
+</UserControl>

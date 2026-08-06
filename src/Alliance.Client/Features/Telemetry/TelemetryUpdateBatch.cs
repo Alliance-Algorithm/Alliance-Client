@@ -20,6 +20,8 @@ internal sealed class TelemetryUpdateBatch
 
     public RadarInfoToClient? RadarInfoToClient { get; init; }
 
+    public DartSelectTargetStatusSync? DartSelectTargetStatusSync { get; init; }
+
     public IReadOnlyList<Event> Events { get; init; } = [];
 
     public IReadOnlyList<Buff> Buffs { get; init; } = [];
@@ -32,6 +34,7 @@ internal sealed class TelemetryUpdateBatch
         RobotStaticStatus is not null ||
         RobotDynamicStatus is not null ||
         RadarInfoToClient is not null ||
+        DartSelectTargetStatusSync is not null ||
         Events.Count > 0 ||
         Buffs.Count > 0;
 }

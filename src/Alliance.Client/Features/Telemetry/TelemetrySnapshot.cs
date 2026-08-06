@@ -120,6 +120,8 @@ public sealed record RobotStatusSnapshot(
     bool IsAerial = false,
     bool IsRadarLocked = false,
     bool IsAirSupportCountered = false,
+    double AirSupportCounteredProgress = 0,
+    double AirSupportCounteredRemainingSeconds = 0,
     IReadOnlyList<string>? BuffLabels = null)
 {
     public double HealthPercent =>
@@ -145,6 +147,13 @@ public sealed record RobotStatusSnapshot(
         IsAerial
             ? (IsAirSupportCountered ? "【被反制】" : "空中单位")
             : IsAlive ? "ONLINE" : "已击毁";
+
+    public bool ShowAirSupportCounteredBar => IsAirSupportCountered && AirSupportCounteredRemainingSeconds > 0;
+
+    public string AirSupportCounteredTimeText =>
+        ShowAirSupportCounteredBar
+            ? $"反制 {Math.Ceiling(AirSupportCounteredRemainingSeconds):F0}s"
+            : string.Empty;
 }
 
 public sealed record CurrentRobotPanelSnapshot(
@@ -330,6 +339,8 @@ public sealed record TelemetrySnapshot
     public EnemyRadarData? EnemyRadarData { get; init; }
 
     public HeroRobotStatus? HeroRobotStatus { get; init; }
+
+    public uint DartGateStatus { get; init; }
 
     public IReadOnlyList<RobotBuffTelemetrySnapshot> ActiveBuffs { get; init; } = [];
 
