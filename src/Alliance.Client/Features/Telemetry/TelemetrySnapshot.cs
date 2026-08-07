@@ -122,6 +122,8 @@ public sealed record RobotStatusSnapshot(
     bool IsAirSupportCountered = false,
     double AirSupportCounteredProgress = 0,
     double AirSupportCounteredRemainingSeconds = 0,
+    bool IsRespawnHighlighted = false,
+    bool IsSentinelAmmoless = false,
     IReadOnlyList<string>? BuffLabels = null)
 {
     public double HealthPercent =>

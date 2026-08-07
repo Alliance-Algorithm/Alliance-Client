@@ -12,6 +12,7 @@ public partial class SettingsDialog : Window
     private readonly Border _messageNav;
     private readonly Border _displayNav;
     private readonly Border _recordingsNav;
+    private readonly Border _effectsNav;
 
     public SettingsDialog()
     {
@@ -20,6 +21,7 @@ public partial class SettingsDialog : Window
         _messageNav = this.FindControl<Border>("MessageNav")!;
         _displayNav = this.FindControl<Border>("DisplayNav")!;
         _recordingsNav = this.FindControl<Border>("RecordingsNav")!;
+        _effectsNav = this.FindControl<Border>("EffectsNav")!;
         UpdateNavStyles();
     }
 
@@ -72,6 +74,15 @@ public partial class SettingsDialog : Window
         }
     }
 
+    private void OnEffectsNavPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (DataContext is SettingsDialogViewModel vm)
+        {
+            vm.IsEffectsTab = true;
+            e.Handled = true;
+        }
+    }
+
     private void OnKeyBindPressed(object? sender, PointerPressedEventArgs e)
     {
         if (DataContext is SettingsDialogViewModel vm)
@@ -101,6 +112,7 @@ public partial class SettingsDialog : Window
         ApplyNav(_messageNav, vm.IsMessageTab);
         ApplyNav(_displayNav, vm.IsDisplayTab);
         ApplyNav(_recordingsNav, vm.IsRecordingsTab);
+        ApplyNav(_effectsNav, vm.IsEffectsTab);
     }
 
     private static void ApplyNav(Border nav, bool active)

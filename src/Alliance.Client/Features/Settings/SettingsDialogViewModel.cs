@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alliance.Client.Features.Audio;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.ScreenRecording;
 using Alliance.Client.Features.Settings;
@@ -22,6 +23,8 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private readonly HudLayoutSettings _hudLayoutSettings;
     private readonly RecordingSettings _recordingSettings;
     private readonly ScreenRecorderService _screenRecorder;
+    private readonly EnemyRespawnAudioService _respawnAudio;
+    private readonly SentinelAmmolessAlertService _sentinelAmmolessAlertService;
     private string _mqttStatusLabel;
     private string _linkStatusLabel;
     private string _videoStatusLabel;
@@ -31,6 +34,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
     private bool _isMessageTab;
     private bool _isDisplayTab;
     private bool _isRecordingsTab;
+    private bool _isEffectsTab;
     private bool _isListeningForKey;
     private string _recordKeyDisplayText;
     private string? _selectedTopic;
@@ -43,7 +47,9 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         AppRuntimeCoordinator runtimeCoordinator,
         HudLayoutSettings hudLayoutSettings,
         RecordingSettings recordingSettings,
-        ScreenRecorderService screenRecorder)
+        ScreenRecorderService screenRecorder,
+        EnemyRespawnAudioService respawnAudio,
+        SentinelAmmolessAlertService sentinelAmmolessAlertService)
     {
         _telemetryStore = telemetryStore;
         _videoStreamStore = videoStreamStore;
@@ -52,6 +58,8 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         _hudLayoutSettings = hudLayoutSettings;
         _recordingSettings = recordingSettings;
         _screenRecorder = screenRecorder;
+        _respawnAudio = respawnAudio;
+        _sentinelAmmolessAlertService = sentinelAmmolessAlertService;
 
         _recordKeyDisplayText = _recordingSettings.KeyBindingText;
 
@@ -128,6 +136,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
                 IsMessageTab = false;
                 IsDisplayTab = false;
                 IsRecordingsTab = false;
+                IsEffectsTab = false;
             }
         }
     }
@@ -142,6 +151,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
                 IsBasicTab = false;
                 IsDisplayTab = false;
                 IsRecordingsTab = false;
+                IsEffectsTab = false;
                 RefreshFields();
             }
         }
@@ -157,6 +167,7 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
                 IsBasicTab = false;
                 IsMessageTab = false;
                 IsRecordingsTab = false;
+                IsEffectsTab = false;
             }
         }
     }
@@ -171,6 +182,22 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
                 IsBasicTab = false;
                 IsMessageTab = false;
                 IsDisplayTab = false;
+                IsEffectsTab = false;
+            }
+        }
+    }
+
+    public bool IsEffectsTab
+    {
+        get => _isEffectsTab;
+        set
+        {
+            if (SetProperty(ref _isEffectsTab, value) && value)
+            {
+                IsBasicTab = false;
+                IsMessageTab = false;
+                IsDisplayTab = false;
+                IsRecordingsTab = false;
             }
         }
     }
@@ -382,6 +409,18 @@ public sealed partial class SettingsDialogViewModel : ObservableObject
         {
             RaiseDisplayStateChanged();
         }
+    }
+
+    [RelayCommand]
+    private void TriggerRespawnTest()
+    {
+        _respawnAudio.TestTrigger();
+    }
+
+    [RelayCommand]
+    private void TriggerSentinelAmmolessTest()
+    {
+        _sentinelAmmolessAlertService.TestTrigger();
     }
 
     private void HandleTelemetryChanged(object? sender, PropertyChangedEventArgs args)

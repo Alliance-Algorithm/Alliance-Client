@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Alliance.Client.Features.Audio;
 using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Hud;
 using Alliance.Client.Features.RmcsImage;
@@ -27,6 +28,8 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ILogger<MainWindowViewModel> _logger;
     private readonly HudLayoutSettings _hudLayoutSettings;
     private readonly DartAutoService _dartAuto;
+    private readonly EnemyRespawnAudioService _respawnAudio;
+    private readonly SentinelAmmolessAlertService _sentinelAmmolessAlertService;
     private string _currentRobotLabel;
     private uint _previousStage;
     private Window? _settingsDialog;
@@ -44,7 +47,9 @@ public sealed class MainWindowViewModel : ObservableObject
         RecordingSettings recordingSettings,
         ILogger<MainWindowViewModel> logger,
         HudLayoutSettings hudLayoutSettings,
-        DartAutoService dartAuto)
+        DartAutoService dartAuto,
+        EnemyRespawnAudioService respawnAudio,
+        SentinelAmmolessAlertService sentinelAmmolessAlertService)
     {
         Hud = hud;
         _telemetryStore = telemetryStore;
@@ -58,6 +63,8 @@ public sealed class MainWindowViewModel : ObservableObject
         _logger = logger;
         _hudLayoutSettings = hudLayoutSettings;
         _dartAuto = dartAuto;
+        _respawnAudio = respawnAudio;
+        _sentinelAmmolessAlertService = sentinelAmmolessAlertService;
 
         WindowTitle = settings.ApplicationName;
 
@@ -117,7 +124,9 @@ public sealed class MainWindowViewModel : ObservableObject
             _runtimeCoordinator,
             _hudLayoutSettings,
             _recordingSettings,
-            _screenRecorder);
+            _screenRecorder,
+            _respawnAudio,
+            _sentinelAmmolessAlertService);
         var dialog = new SettingsDialog(vm);
         dialog.Closed += (_, _) => _settingsDialog = null;
         _settingsDialog = dialog;

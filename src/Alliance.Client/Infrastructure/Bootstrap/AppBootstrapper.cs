@@ -1,3 +1,4 @@
+using Alliance.Client.Features.Audio;
 using Alliance.Client.Features.Control;
 using Alliance.Client.Features.Dart;
 using Alliance.Client.Features.Hud;
@@ -43,6 +44,10 @@ public static class AppBootstrapper
         services.AddSingleton<ITelemetryService>(sp => sp.GetRequiredService<MqttTelemetryService>());
         services.AddSingleton<IMqttMessagePublisher>(sp => sp.GetRequiredService<MqttTelemetryService>());
         services.AddSingleton<DartAutoService>();
+        services.AddSingleton<RespawnHighlightState>();
+        services.AddSingleton<EnemyRespawnAudioService>();
+        services.AddSingleton<SentinelAmmolessHighlightState>();
+        services.AddSingleton<SentinelAmmolessAlertService>();
         services.AddSingleton<VideoStreamStore>();
         services.AddSingleton<HudLayoutSettings>();
         services.AddSingleton<IVideoSupervisorService, VideoSupervisorService>();

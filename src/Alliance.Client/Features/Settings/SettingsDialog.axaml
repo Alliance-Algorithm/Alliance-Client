@@ -40,6 +40,11 @@
             <TextBlock Text="Recordings" FontSize="13" FontWeight="SemiBold"
                        Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
           </Border>
+          <Border x:Name="EffectsNav" Classes="settings-nav-item"
+                  PointerPressed="OnEffectsNavPressed" Cursor="Hand">
+            <TextBlock Text="Effects" FontSize="13" FontWeight="SemiBold"
+                       Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" />
+          </Border>
         </StackPanel>
       </Border>
 
@@ -109,6 +114,7 @@
               </Grid>
             </Border>
           </StackPanel>
+
         </StackPanel>
 
         <!-- Message 页面 -->
@@ -293,6 +299,24 @@
                            FontSize="11"
                            FontFamily="{DynamicResource AppMono}"
                            IsVisible="{Binding HasRecStatusError}" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- Effects 页面 -->
+        <StackPanel IsVisible="{Binding IsEffectsTab}" Spacing="16" Margin="20,16">
+          <StackPanel Spacing="6">
+            <TextBlock Text="AUDIO &amp; EFFECTS TEST" FontWeight="SemiBold" FontSize="11"
+                       Foreground="{DynamicResource AccentBrush}" LetterSpacing="1" />
+            <Border Background="#0D1117" CornerRadius="8" Padding="12,10">
+              <StackPanel Spacing="12">
+                <Button Content="Test Respawn (Sound + Highlight)"
+                        Classes="settings-apply-btn"
+                        Command="{Binding TriggerRespawnTestCommand}" />
+                <Button Content="Test Sentinel Ammo Alert (Sound + Highlight 5s)"
+                        Classes="settings-apply-btn"
+                        Command="{Binding TriggerSentinelAmmolessTestCommand}" />
               </StackPanel>
             </Border>
           </StackPanel>

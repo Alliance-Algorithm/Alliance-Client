@@ -1,3 +1,4 @@
+using Alliance.Client.Features.Audio;
 using Alliance.Client.Features.Settings;
 using Alliance.Client.Features.Telemetry;
 using Alliance.Client.Protocol;
@@ -24,7 +25,7 @@ public sealed class TelemetryMappingTests
     public void TelemetryStore_Maps_ProtocolMessages_Into_HudSnapshot()
     {
         var settings = CreateSettings();
-        var store = new TelemetryStore(settings, null!);
+        var store = new TelemetryStore(settings, null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
 
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyGameStatus(new GameStatus
@@ -102,7 +103,8 @@ public sealed class TelemetryMappingTests
         Assert.False(snapshot.AllyRobots[5].ShowHealthBar);
         Assert.True(snapshot.AllyRobots[5].IsAerial);
         Assert.Equal("无人机", snapshot.AllyRobots[5].RobotTypeText);
-        Assert.Equal("弹 88", snapshot.AllyRobots[5].AmmoDisplayText);
+        Assert.Equal("弹 88", snapshot.AllyRobots[4].AmmoDisplayText);
+        Assert.Equal("弹 67", snapshot.AllyRobots[5].AmmoDisplayText);
         Assert.Equal("空中单位", snapshot.AllyRobots[5].StateText);
         Assert.Equal("707", snapshot.EnemyRobots[4].HealthText);
         Assert.Equal("弹 --", snapshot.EnemyRobots[0].AmmoDisplayText);
@@ -142,7 +144,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_Maps_Buffs_Events_And_Mechanisms_Into_State_And_Hud()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyBuff(new Buff
@@ -193,7 +195,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_EnemyAirSupport_Countered_Until_Next_Call()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyEvent(new Event { EventId = 8, Param = "1" });
@@ -215,7 +217,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_EnemyAirSupport_Countered_Expires_After_45_Seconds()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyEvent(new Event { EventId = 8, Param = "1" });
@@ -229,7 +231,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_BaseAttack_Toast_Lasts_Five_Seconds()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyEvent(new Event { EventId = 11 });
 
@@ -242,7 +244,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_Outpost_Rebuild_Alerts_Follow_Status()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyGlobalUnitStatus(new GlobalUnitStatus
@@ -270,7 +272,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_RefreshStaleness_CountsDown_And_Expires_TimedState()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyBuff(new Buff
         {
@@ -304,7 +306,7 @@ public sealed class TelemetryMappingTests
     [InlineData("101", 1, 101)]
     public void TelemetryStore_Maps_RadarInfo_By_Client_Side(string clientId, int expectedEnemyHero, int expectedAllyHero)
     {
-        var store = new TelemetryStore(CreateSettings(clientId), null!);
+        var store = new TelemetryStore(CreateSettings(clientId), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         var radar = new RadarInfoToClient();
@@ -335,7 +337,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_RuntimeRobotId_Overrides_ClientSide_For_Team_Color_And_Radar()
     {
-        var store = new TelemetryStore(CreateSettings("101"), null!);
+        var store = new TelemetryStore(CreateSettings("101"), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
 
         store.ApplyGlobalUnitStatus(new GlobalUnitStatus
@@ -378,7 +380,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_Marks_Snapshot_As_Stale_When_Data_Stops()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         store.SetMqttState(ConnectionState.Ready, "MQTT ready");
         store.ApplyGameStatus(new GameStatus
         {
@@ -394,7 +396,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_ApplyBatch_Publishes_Snapshot_Once()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         var publishes = 0;
         store.PropertyChanged += (_, args) =>
         {
@@ -423,7 +425,7 @@ public sealed class TelemetryMappingTests
     [Fact]
     public void TelemetryStore_ApplyBatch_Preserves_Event_And_Buff_Order()
     {
-        var store = new TelemetryStore(CreateSettings(), null!);
+        var store = new TelemetryStore(CreateSettings(), null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
 
         store.ApplyBatch(new TelemetryUpdateBatch
         {
@@ -463,7 +465,7 @@ public sealed class TelemetryMappingTests
     {
         var settings = CreateSettings();
         settings.EnableDebugMode = false;
-        var store = new TelemetryStore(settings, null!);
+        var store = new TelemetryStore(settings, null!, new RespawnHighlightState(), new SentinelAmmolessHighlightState());
         var payload = new byte[] { 0x01, 0x02, 0x03 };
         var snapshot = store.CurrentSnapshot;
         var publishes = 0;

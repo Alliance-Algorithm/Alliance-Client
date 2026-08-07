@@ -1,4 +1,5 @@
 using System.Globalization;
+using Alliance.Client.Features.Audio;
 using Alliance.Client.Features.HeroTelemetry;
 using Alliance.Client.Features.RadarTelemetry;
 using Alliance.Client.Features.RmcsImage;
@@ -14,6 +15,7 @@ public sealed class TelemetryStore : ObservableObject
 {
     private static readonly string[] RobotSlots = ["1", "2", "3", "4", "7", "6"];
     private static readonly int[] VisibleRobotSlotIds = [1, 2, 3, 4, 7, 6];
+    private static readonly int[] AllyBulletsOrder = [1, 2, 3, 4, 6, 7];
     private static readonly int[] TeamHealthOrder = [1, 2, 3, 4, 7];
     private static readonly int[] RadarRelativeOrder = [1, 2, 3, 4, 6, 7];
     private static readonly int[] RedRobotIds = [1, 2, 3, 4, 6, 7];
@@ -23,6 +25,8 @@ public sealed class TelemetryStore : ObservableObject
     private readonly int? _configuredRobotId;
     private bool _isOwnTeamBlue;
     private readonly RmcsImageProcessor _rmcsImageProcessor;
+    private readonly RespawnHighlightState _respawnHighlightState;
+    private readonly SentinelAmmolessHighlightState _sentinelHighlightState;
 
     private TelemetrySnapshot _currentSnapshot;
     private GameStatus? _gameStatus;
@@ -48,7 +52,7 @@ public sealed class TelemetryStore : ObservableObject
     private readonly OutpostRebuildTracker _allyOutpostRebuild = new();
     private readonly OutpostRebuildTracker _enemyOutpostRebuild = new();
 
-    public TelemetryStore(AppSettings settings, RmcsImageProcessor rmcsImageProcessor)
+    public TelemetryStore(AppSettings settings, RmcsImageProcessor rmcsImageProcessor, RespawnHighlightState respawnHighlightState, SentinelAmmolessHighlightState sentinelHighlightState)
     {
         if (!PlayerIdentity.TryResolveRobotId(settings.Mqtt.ClientId, out var robotId))
         {
@@ -61,6 +65,8 @@ public sealed class TelemetryStore : ObservableObject
         }
 
         _rmcsImageProcessor = rmcsImageProcessor;
+        _respawnHighlightState = respawnHighlightState;
+        _sentinelHighlightState = sentinelHighlightState;
 
         _currentSnapshot = BuildSnapshot();
     }
@@ -481,6 +487,7 @@ public sealed class TelemetryStore : ObservableObject
             var nextBuffs = BuildActiveBuffSnapshots(now);
             var nextMechanisms = BuildMechanismSnapshots(now);
             var showToast = IsBaseAttackToastVisible(now);
+            var hasActiveRespawnHighlight = CurrentSnapshot.EnemyRobots.Any(r => r.IsRespawnHighlighted);
             var shouldPublish = BuildLinkState(now) != CurrentSnapshot.LinkState ||
                                 BuildWarningText(now) != CurrentSnapshot.WarningText ||
                                 BuildLastUpdateText(now) != CurrentSnapshot.LastUpdateText ||
@@ -489,7 +496,9 @@ public sealed class TelemetryStore : ObservableObject
                                 !CurrentSnapshot.ActiveMechanisms.SequenceEqual(nextMechanisms) ||
                                 _allyOutpostRebuild.IsDirty ||
                                 _enemyOutpostRebuild.IsDirty ||
-                                _enemyAirSupportCountered;
+                                _enemyAirSupportCountered ||
+                                hasActiveRespawnHighlight ||
+                                _sentinelHighlightState.IsActive;
 
             if (shouldPublish)
             {
@@ -497,6 +506,15 @@ public sealed class TelemetryStore : ObservableObject
                 _enemyOutpostRebuild.IsDirty = false;
                 PublishSnapshotLocked(now, nextBuffs, nextMechanisms);
             }
+        }
+    }
+
+    public void ForceRefresh()
+    {
+        lock (_gate)
+        {
+            _lastTelemetryAt ??= DateTimeOffset.UtcNow;
+            PublishSnapshotLocked();
         }
     }
 
@@ -684,6 +702,12 @@ public sealed class TelemetryStore : ObservableObject
                 counterProgress = counterRemaining / 45;
             }
 
+            var isRespawnHighlighted = !isAllyTeam &&
+                                       _respawnHighlightState.IsHighlighted(slotLabel, now.UtcDateTime);
+
+            var isSentinelAmmoless = isAllyTeam && relativeRobotId == 7 &&
+                                     _sentinelHighlightState.IsActive;
+
             values.Add(new RobotStatusSnapshot(
                 slotLabel,
                 health?.ToString(CultureInfo.InvariantCulture) ?? "--",
@@ -706,6 +730,8 @@ public sealed class TelemetryStore : ObservableObject
                 IsAirSupportCountered: isAirSupportCountered,
                 AirSupportCounteredProgress: counterProgress,
                 AirSupportCounteredRemainingSeconds: counterRemaining,
+                IsRespawnHighlighted: isRespawnHighlighted,
+                IsSentinelAmmoless: isSentinelAmmoless,
                 BuffLabels: buffLabels));
         }
 
@@ -742,7 +768,7 @@ public sealed class TelemetryStore : ObservableObject
             return null;
         }
 
-        var index = Array.IndexOf(VisibleRobotSlotIds, relativeRobotId);
+        var index = Array.IndexOf(AllyBulletsOrder, relativeRobotId);
         if (index < 0 || index >= _globalUnitStatus.RobotBullets.Count)
         {
             return null;

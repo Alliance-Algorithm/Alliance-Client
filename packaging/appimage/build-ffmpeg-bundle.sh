@@ -30,9 +30,9 @@ Regenerate it with:
 
 The resulting bundle is validated to ensure:
 
-- \`ffmpeg\` exists and is a valid ELF executable
+- \`ffmpeg\` and \`ffplay\` exist and are valid ELF executables
 - \`libavcodec.so.62\`, \`libavutil.so.60\`, and \`libswscale.so.9\` exist
-- \`libx264.so\` is present
+- \`libx264.so\` and \`libSDL2-2.0.so\` are present
 - the highest required \`GLIBC_*\` version does not exceed \`GLIBC_$GLIBC_FLOOR\`
 EOF
 }
@@ -112,7 +112,7 @@ mkdir -p "$OUTPUT_DIR"
   -u "$(id -u):$(id -g)" \
   -v "$OUTPUT_DIR:/out" \
   "$IMAGE_TAG" \
-  bash -lc 'cp -a /opt/ffmpeg-bundle/lib/*.so* /out/ && cp -a /opt/ffmpeg-bundle/bin/ffmpeg /out/'
+  bash -lc 'cp -a /opt/ffmpeg-bundle/lib/*.so* /out/ && cp -a /opt/ffmpeg-bundle/bin/ffmpeg /out/ && cp -a /opt/ffmpeg-bundle/bin/ffplay /out/'
 
 "$DOCKER_BIN" run --rm \
   -u "$(id -u):$(id -g)" \
@@ -129,8 +129,24 @@ mkdir -p "$OUTPUT_DIR"
     exit 1
   '
 
+"$DOCKER_BIN" run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$OUTPUT_DIR:/out" \
+  "$IMAGE_TAG" \
+  bash -lc '
+    for dir in /usr/lib/x86_64-linux-gnu /usr/lib /usr/lib64; do
+      if compgen -G "$dir/libSDL2-2.0.so*" >/dev/null 2>&1; then
+        cp -a "$dir"/libSDL2-2.0.so* /out/
+        exit 0
+      fi
+    done
+    echo "ERROR: could not locate libSDL2-2.0 in the container" >&2
+    exit 1
+  '
+
 patchelf --set-rpath '$ORIGIN' "$OUTPUT_DIR/ffmpeg"
-for lib_path in "$OUTPUT_DIR"/libav*.so* "$OUTPUT_DIR"/libsw*.so* "$OUTPUT_DIR"/libx264*.so*; do
+patchelf --set-rpath '$ORIGIN' "$OUTPUT_DIR/ffplay"
+for lib_path in "$OUTPUT_DIR"/libav*.so* "$OUTPUT_DIR"/libsw*.so* "$OUTPUT_DIR"/libx264*.so* "$OUTPUT_DIR"/libSDL2*.so*; do
   if [[ -f "$lib_path" ]] && file -b "$lib_path" | grep -q ELF; then
     patchelf --set-rpath '$ORIGIN' "$lib_path"
   fi
@@ -147,6 +163,16 @@ done
 
 if ! file "$OUTPUT_DIR/ffmpeg" | grep -q ELF; then
   echo "ffmpeg binary is not a valid ELF executable" >&2
+  exit 1
+fi
+
+if ! file "$OUTPUT_DIR/ffplay" | grep -q ELF; then
+  echo "ffplay binary is not a valid ELF executable" >&2
+  exit 1
+fi
+
+if ! compgen -G "$OUTPUT_DIR/libSDL2-2.0.so.[0-9]*" >/dev/null; then
+  echo "libSDL2-2.0.so.<version> not found in output bundle" >&2
   exit 1
 fi
 

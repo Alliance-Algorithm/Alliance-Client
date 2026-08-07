@@ -35,11 +35,22 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="telemetry:RobotStatusSnapshot">
-                        <Border Classes="hud-robot-card" Margin="6,3"
-                                VerticalAlignment="Stretch"
-                                Opacity="{Binding CardOpacity}">
-                            <Grid RowDefinitions="Auto,Auto,*" RowSpacing="5">
-                                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                            <Border Classes="hud-robot-card" Margin="6,3"
+                                    VerticalAlignment="Stretch"
+                                    Opacity="{Binding CardOpacity}">
+                                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="5">
+
+                                    <!-- 买活高亮边框 -->
+                                    <Border IsVisible="{Binding IsRespawnHighlighted}"
+                                            Classes="hud-respawn-highlight-border"
+                                            Grid.RowSpan="3" />
+
+                                    <!-- 哨兵缺弹高亮边框 -->
+                                    <Border IsVisible="{Binding IsSentinelAmmoless}"
+                                            Classes="hud-sentinel-ammoless-highlight-border"
+                                            Grid.RowSpan="3" />
+
+                                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                                     <Border Classes="hud-robot-slot-badge"
                                             Background="{Binding IsBlue, Converter={x:Static local:TeamHealthBrushConverter.Instance}}">
                                         <TextBlock Text="{Binding SlotLabel}"

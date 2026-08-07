@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     nasm \
     libx264-dev \
+    libsdl2-dev \
     libx11-dev \
     libxext-dev \
     libxfixes-dev \
